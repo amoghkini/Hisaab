@@ -218,3 +218,9 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# MkDocs build output
+docs/site/
+
+# Local backend database
+backend/*.db

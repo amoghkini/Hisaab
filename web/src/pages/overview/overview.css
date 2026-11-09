@@ -1,0 +1,658 @@
+/*
+ * The dashboard. Adapted from ezBookkeeping's src/styles/desktop/components/_overview.scss and
+ * _overview-widget.scss (MIT, see THIRD_PARTY_NOTICES.md), using this app's colour variables:
+ * the theme colour comes from MUI (--mui-palette-primary-*), surfaces from --hk-* in styles.css, and amounts from
+ * --hk-income-color and --hk-expense-color.
+ */
+
+/* ---------- Grid ---------- */
+
+.overview-dashboard {
+  display: grid;
+  grid-template-columns: repeat(12, minmax(0, 1fr));
+  grid-auto-rows: var(--overview-row-height);
+  gap: var(--overview-gap);
+}
+
+.overview-dashboard__item {
+  min-width: 0;
+  min-height: 0;
+  position: relative;
+}
+
+/* Small screens: one widget under another, each at least as tall as its grid height. */
+@media (max-width: 959px) {
+  .overview-dashboard {
+    display: flex;
+    flex-direction: column;
+    min-height: 0 !important;
+  }
+
+  .overview-dashboard__item {
+    min-height: var(--overview-item-height);
+  }
+
+  .overview-dashboard__item--fixed {
+    flex: 0 0 var(--overview-item-height);
+    height: var(--overview-item-height);
+  }
+}
+
+/* ---------- Widget frame ---------- */
+
+.overview-widget {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-width: 0;
+  overflow: hidden;
+  container: overview-widget / inline-size;
+  border: 1px solid rgba(var(--hk-border), 0.075);
+  border-radius: 12px;
+  background:
+    radial-gradient(ellipse at 100% 0, rgb(var(--mui-palette-primary-mainChannel) / 0.045), transparent 18rem),
+    var(--mui-palette-background-paper);
+}
+
+.overview-widget__header {
+  display: flex;
+  flex: 0 0 auto;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  min-height: 32px;
+  padding: 12px 12px 8px 16px;
+}
+
+.overview-widget__title.MuiTypography-root {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  color: rgba(var(--hk-on-surface), 0.86);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.overview-widget__body {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-height: 0;
+  padding: 0 16px 14px;
+  overflow: auto;
+  scrollbar-width: thin;
+}
+
+.overview-widget__caption {
+  color: rgba(var(--hk-on-surface), 0.62);
+  font-size: 0.875rem;
+  line-height: 1.5;
+}
+
+.overview-widget__amount {
+  min-width: 0;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.025em;
+  overflow-wrap: anywhere;
+  line-height: 1.3;
+}
+
+.overview-widget__stat {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.overview-widget__dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-inline-end: 6px;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.overview-widget__dot--income { background: var(--hk-income-color); }
+.overview-widget__dot--expense { background: var(--hk-expense-color); }
+.overview-amount--income { color: var(--hk-income-color); }
+.overview-amount--expense { color: var(--hk-expense-color); }
+.overview-amount--none { color: rgba(var(--hk-on-surface), 0.6); }
+
+.overview-widget__footer {
+  margin-block-start: auto;
+  padding-block-start: 10px;
+  border-block-start: 1px solid rgba(var(--hk-border), 0.07);
+  color: rgba(var(--hk-on-surface), 0.58);
+  font-size: 0.75rem;
+}
+
+.overview-widget__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  min-height: 120px;
+  height: 100%;
+  color: rgba(var(--hk-on-surface), 0.55);
+}
+
+.overview-widget__empty .MuiSvgIcon-root {
+  color: rgb(var(--mui-palette-primary-mainChannel) / 0.45);
+}
+
+.overview-widget__item-icon {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  margin-inline-end: 10px;
+  border-radius: 8px;
+  background: rgba(var(--hk-on-surface), 0.035);
+}
+
+/* Vuetify's "tonal" button: the theme colour on a light tint of it. */
+.overview-tonal-button.MuiButton-root {
+  color: var(--mui-palette-primary-main);
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.12);
+  border-radius: 8px;
+}
+
+.overview-tonal-button.MuiButton-root:hover {
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.2);
+}
+
+/* ---------- This month's expense ---------- */
+
+.monthly-expense-widget {
+  padding: 12px 16px 16px;
+  background:
+    radial-gradient(circle at 100% 100%, rgb(var(--mui-palette-primary-mainChannel) / 0.075), transparent 11rem),
+    linear-gradient(145deg, rgb(var(--mui-palette-primary-mainChannel) / 0.035), transparent 56%),
+    var(--mui-palette-background-paper);
+}
+
+.monthly-expense-widget::after {
+  position: absolute;
+  z-index: 0;
+  width: 9rem;
+  height: 9rem;
+  border-radius: 50%;
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.055);
+  content: "";
+  filter: blur(1.5rem);
+  inset-block-end: -4.5rem;
+  inset-inline-end: -3.5rem;
+  pointer-events: none;
+}
+
+.monthly-expense-widget__title {
+  display: flex;
+  align-items: center;
+}
+
+.monthly-expense-widget__month {
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 2rem;
+}
+
+.monthly-expense-widget__dot {
+  margin-inline: 4px;
+  color: rgba(var(--hk-on-surface), 0.6);
+  font-size: 1.375rem;
+}
+
+.monthly-expense-widget__label {
+  color: rgba(var(--hk-on-surface), 0.6);
+  font-size: 0.875rem;
+  font-weight: 700;
+  align-self: flex-end;
+  padding-block-end: 4px;
+}
+
+.monthly-expense-widget__content {
+  position: relative;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  width: calc(100% - 7.5rem);
+  min-width: 10rem;
+}
+
+.monthly-expense-widget__amount {
+  color: var(--mui-palette-primary-main);
+  font-size: 1.5rem;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.monthly-expense-widget__income {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.45rem;
+  margin-top: 8px;
+  padding: 0.4rem 0.8rem;
+  border: 1px solid rgba(var(--hk-border), 0.07);
+  border-radius: 999px;
+  background: rgba(var(--hk-surface-raised), 0.72);
+  box-shadow: 0 1px 3px rgba(var(--hk-shadow-color), 0.06);
+  font-size: 0.875rem;
+}
+
+.monthly-expense-widget__income strong {
+  white-space: nowrap;
+}
+
+.monthly-expense-widget__income-dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  flex: 0 0 auto;
+  border-radius: 50%;
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.72);
+  box-shadow: 0 0 0 0.22rem rgb(var(--mui-palette-primary-mainChannel) / 0.1);
+}
+
+.monthly-expense-widget__income-label {
+  overflow: hidden;
+  color: rgba(var(--hk-on-surface), 0.66);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.monthly-expense-widget__illustration {
+  position: absolute;
+  z-index: 1;
+  width: clamp(7.25rem, 28%, 9.25rem);
+  color: var(--mui-palette-primary-main);
+  inset-block-end: 0.3rem;
+  inset-inline-end: 1rem;
+  opacity: 0.9;
+}
+
+.monthly-expense-widget__illustration svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  overflow: visible;
+  filter: drop-shadow(0 0.55rem 0.8rem rgba(var(--hk-shadow-color), 0.08));
+}
+
+.mei-halo { fill: currentColor; opacity: 0.055; }
+.mei-dot { fill: currentColor; opacity: 0.32; }
+.mei-dot--muted { opacity: 0.16; }
+.mei-paper { fill: var(--mui-palette-background-paper); stroke: currentColor; stroke-width: 2; stroke-linejoin: round; }
+.mei-paper > path { fill: currentColor; opacity: 0.1; }
+.mei-line { fill: currentColor; stroke: none; opacity: 0.34; }
+.mei-line--short { opacity: 0.15; }
+.mei-total { fill: currentColor; stroke: none; opacity: 0.1; }
+.mei-total-line { fill: none; stroke: currentColor; stroke-linecap: round; stroke-width: 3; opacity: 0.5; }
+.mei-chart { fill: var(--mui-palette-background-paper); stroke: currentColor; stroke-width: 2; }
+.mei-chart-track,
+.mei-chart-value { fill: none; stroke-width: 6; }
+.mei-chart-track { opacity: 0.12; }
+.mei-chart-value {
+  stroke-dasharray: 58 42;
+  stroke-linecap: round;
+  transform: rotate(-90deg);
+  transform-origin: 117px 82px;
+  opacity: 0.65;
+}
+.mei-chart-center { fill: currentColor; stroke: none; opacity: 0.12; }
+.mei-coins { fill: var(--mui-palette-background-paper); stroke: currentColor; stroke-width: 2; }
+
+@media (max-width: 1199px) {
+  .monthly-expense-widget__content { width: calc(100% - 6.25rem); }
+
+  .monthly-expense-widget__illustration {
+    width: 7.25rem;
+    inset-block-end: 1.8rem;
+    inset-inline-end: 0.75rem;
+    opacity: 0.78;
+  }
+}
+
+/* ---------- Asset summary ---------- */
+
+.asset-summary-widget .overview-widget__body {
+  padding-top: 4px;
+}
+
+.asset-summary-widget__metrics {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  align-items: center;
+  margin-top: 12px;
+}
+
+.asset-summary-widget__metric {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  min-width: 0;
+  padding: 16px 8px;
+}
+
+.asset-summary-widget__metric + .asset-summary-widget__metric {
+  padding-inline-start: 20px;
+  border-inline-start: 1px solid rgba(var(--hk-border), 0.09);
+}
+
+.asset-summary-widget__avatar {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+}
+
+.asset-summary-widget__metric--neutral .asset-summary-widget__avatar {
+  color: rgba(var(--hk-on-surface), 0.7);
+  background: rgba(var(--hk-on-surface), 0.08);
+}
+
+.asset-summary-widget__metric--expense .asset-summary-widget__avatar {
+  color: var(--hk-expense-color);
+  background: color-mix(in srgb, var(--hk-expense-color) 12%, transparent);
+}
+
+.asset-summary-widget__metric--primary .asset-summary-widget__avatar {
+  color: var(--mui-palette-primary-main);
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.12);
+}
+
+.asset-summary-widget__value {
+  overflow: hidden;
+  font-size: 1.375rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.asset-summary-widget__metric--primary .asset-summary-widget__value {
+  color: var(--mui-palette-primary-main);
+}
+
+@media (max-width: 839px) {
+  .asset-summary-widget__metrics { grid-template-columns: minmax(0, 1fr); }
+
+  .asset-summary-widget__metric { padding: 8px 0; }
+
+  .asset-summary-widget__metric + .asset-summary-widget__metric {
+    padding-inline-start: 0;
+    border-inline-start: 0;
+    border-block-start: 1px solid rgba(var(--hk-border), 0.07);
+  }
+}
+
+/* ---------- Period income and expense ---------- */
+
+.period-income-expense-widget__content {
+  display: grid;
+  flex: 1 0 auto;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.period-income-expense-widget__metrics {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+
+.period-income-expense-widget__body .overview-widget__caption {
+  font-size: 0.75rem;
+  line-height: 18px;
+}
+
+.period-income-expense-widget__body .overview-widget__footer {
+  padding-block-start: 8px;
+  line-height: 18px;
+}
+
+.period-income-expense-widget__amount {
+  overflow: hidden;
+  font-size: clamp(1.25rem, 8cqi, 1.5rem);
+  font-weight: 500;
+  line-height: 1.2;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.period-income-expense-widget__illustration {
+  display: none;
+  width: 112px;
+  align-self: center;
+  max-width: 100%;
+  color: var(--mui-palette-primary-main);
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.piei-paper,
+.piei-flow circle {
+  fill: var(--mui-palette-background-paper);
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-opacity: 0.45;
+}
+
+.piei-flow path {
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.65;
+}
+
+@container overview-widget (min-width: 330px) {
+  .period-income-expense-widget__content { grid-template-columns: minmax(0, 1fr) 112px; }
+
+  .period-income-expense-widget__illustration {
+    display: block;
+    justify-self: end;
+  }
+}
+
+/* ---------- Expense category ranking ---------- */
+
+.expense-ranking-widget .overview-widget__body {
+  padding-block-end: 8px;
+}
+
+.expense-ranking-widget__item.MuiButtonBase-root {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 4px 0;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  text-align: start;
+}
+
+.expense-ranking-widget__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.expense-ranking-widget__label-row {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-block-end: 3px;
+  font-size: 0.875rem;
+}
+
+.expense-ranking-widget__name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expense-ranking-widget__amount {
+  flex: 0 0 auto;
+  opacity: 0.8;
+}
+
+.expense-ranking-widget__progress {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  height: 16px;
+}
+
+.expense-ranking-widget__percent {
+  flex: 0 0 auto;
+  font-size: 0.75rem;
+  opacity: 0.7;
+}
+
+/* ---------- Expense trend ---------- */
+
+.expense-trend-widget__chart {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  margin: 4px 0 0;
+}
+
+.expense-trend-widget__chart svg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.expense-trend-widget__line {
+  stroke: var(--hk-expense-color);
+  stroke-width: 2;
+}
+
+.expense-trend-widget__hover {
+  position: absolute;
+  inset: 0;
+}
+
+.expense-trend-widget__hover > span {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+}
+
+.expense-trend-widget__guide {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 1px;
+  background: rgba(var(--hk-on-surface), 0.15);
+  pointer-events: none;
+}
+
+.expense-trend-widget__point {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border: 2px solid var(--hk-expense-color);
+  border-radius: 50%;
+  background: var(--mui-palette-background-paper);
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+}
+
+/* ---------- Calendar heatmap ---------- */
+
+.calendar-heatmap-widget__body {
+  flex: 1 1 auto;
+  min-height: 0;
+  padding: 0 16px 12px;
+  overflow: hidden;
+}
+
+.calendar-heatmap-widget__body svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.heatmap__cell { fill: var(--mui-palette-primary-main); }
+.heatmap__cell--empty { fill: rgba(var(--hk-on-surface), 0.07); }
+.heatmap__label { fill: rgba(var(--hk-on-surface), 0.55); font-size: 9px; }
+
+/* ---------- Transaction calendar ---------- */
+
+.transaction-calendar-widget__month {
+  padding: 0 16px 6px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  text-align: center;
+}
+
+.transaction-calendar-widget__grid {
+  display: grid;
+  flex: 1 1 auto;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: 2px;
+  min-height: 0;
+  padding: 0 8px 10px;
+}
+
+.transaction-calendar-widget__weekday {
+  padding-bottom: 4px;
+  color: rgba(var(--hk-on-surface), 0.6);
+  font-size: 0.75rem;
+  text-align: center;
+}
+
+.transaction-calendar-widget__day.MuiButtonBase-root {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  min-width: 0;
+  padding: 4px 2px;
+  overflow: hidden;
+  border-radius: 8px;
+}
+
+.transaction-calendar-widget__day.MuiButtonBase-root:hover {
+  background: rgba(var(--hk-on-surface), 0.05);
+}
+
+.transaction-calendar-widget__day--today.MuiButtonBase-root {
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.1);
+}
+
+.transaction-calendar-widget__day--today .transaction-calendar-widget__date {
+  color: var(--mui-palette-primary-main);
+}
+
+.transaction-calendar-widget__date {
+  font-size: 0.875rem;
+  line-height: 1.25rem;
+}
+
+.transaction-calendar-widget__date--busy {
+  font-weight: 700;
+}
+
+.transaction-calendar-widget__amount {
+  max-width: 100%;
+  overflow: hidden;
+  font-size: 0.6875rem;
+  line-height: 0.9rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}

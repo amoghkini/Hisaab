@@ -1,0 +1,296 @@
+/*
+ * Layout and artwork styles for the auth pages, ported from ezBookkeeping's styles/desktop/components/_auth.scss
+ * (MIT, see THIRD_PARTY_NOTICES.md).
+ *
+ * The theme colour is never written here: it comes from the variables MUI sets from the theme
+ * (--mui-palette-primary-main, -mainChannel for tints, -contrastText for text on it), so a user's chosen
+ * colour reaches these styles too. The --hk-* values below are fixed "r, g, b" surface colours.
+ */
+:root {
+  --hk-surface: 255, 255, 255;
+  --hk-on-surface: 65, 57, 53;
+  --hk-surface-raised: 255, 255, 255;
+  --hk-auth-background: 250, 248, 244;
+  --hk-border: 54, 47, 42;
+  --hk-shadow-color: 68, 48, 34;
+  --hk-radius-xl: 1rem;
+}
+
+/* MUI puts "dark" on <html> for a dark theme, whether chosen or followed from the device. */
+:root.dark {
+  --hk-surface: 26, 26, 26;
+  --hk-on-surface: 252, 240, 227;
+  --hk-surface-raised: 39, 36, 33;
+  --hk-auth-background: 32, 33, 34;
+  --hk-border: 236, 226, 217;
+  --hk-shadow-color: 0, 0, 0;
+}
+
+.hk-logo rect {
+  fill: var(--mui-palette-primary-main);
+}
+
+.hk-logo path {
+  fill: var(--mui-palette-primary-contrastText);
+}
+
+/* ---- the page ---- */
+.auth-layout {
+  position: relative;
+}
+
+.auth-logo {
+  position: absolute;
+  z-index: 1;
+  inset-block-start: 1.5rem;
+  inset-inline-start: 1.75rem;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.625rem;
+  color: inherit;
+  text-decoration: none;
+}
+
+.auth-app-title {
+  align-self: center;
+  font-size: 1.25rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+  letter-spacing: -0.01em;
+  color: rgba(var(--hk-on-surface), 0.9);
+}
+
+.auth-wrapper {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.auth-wrapper--login {
+  grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+}
+
+.auth-wrapper--signup {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+}
+
+.auth-card {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  background: rgb(var(--hk-surface));
+  border-radius: var(--hk-radius-xl);
+  box-shadow: -1rem 0 3rem rgba(var(--hk-shadow-color), 0.035);
+}
+
+.auth-message,
+.auth-links,
+.auth-footer {
+  color: rgba(var(--hk-on-surface), 0.8);
+}
+
+.auth-image-background {
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 82% 16%, rgb(var(--mui-palette-primary-mainChannel) / 0.08), transparent 22rem),
+    linear-gradient(145deg, rgb(var(--mui-palette-primary-mainChannel) / 0.025), transparent 52%),
+    rgb(var(--hk-auth-background));
+}
+
+.auth-image-background::before,
+.auth-image-background::after {
+  position: absolute;
+  z-index: 0;
+  border-radius: 50%;
+  content: "";
+  pointer-events: none;
+}
+
+.auth-image-background::before {
+  width: clamp(13rem, 30vw, 30rem);
+  height: clamp(13rem, 30vw, 30rem);
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.06);
+  inset-block-start: -18%;
+  inset-inline-start: -9.5rem;
+}
+
+.auth-image-background::after {
+  width: clamp(9rem, 23vw, 21rem);
+  height: clamp(9rem, 23vw, 21rem);
+  background: rgb(var(--mui-palette-primary-mainChannel) / 0.045);
+  inset-block-end: -6rem;
+  inset-inline-end: -6.5rem;
+}
+
+@media (max-width: 959px) {
+  .auth-wrapper--login,
+  .auth-wrapper--signup {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .auth-image-background {
+    display: none;
+  }
+}
+
+/* ---- the artwork ---- */
+.auth-illustration {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 100%;
+  height: 100%;
+  place-items: center;
+  isolation: isolate;
+}
+
+.auth-illustration__art {
+  width: min(72%, 38rem);
+  max-height: min(78vh, 38rem);
+  overflow: visible;
+}
+
+.auth-illustration--signup .auth-illustration__art {
+  width: min(78%, 25rem);
+  height: auto;
+  max-height: min(76vh, 36rem);
+}
+
+@media (max-height: 720px) and (min-width: 960px) {
+  .auth-illustration--login .auth-illustration__art {
+    width: min(66%, 32rem);
+    max-height: 80vh;
+  }
+}
+
+.auth-illustration__backdrop { fill: rgb(var(--mui-palette-primary-mainChannel) / 0.055); }
+.auth-illustration__paper { fill: rgb(var(--hk-surface-raised)); stroke: rgba(var(--hk-border), 0.09); stroke-width: 1; }
+.auth-illustration__soft { fill: rgb(var(--mui-palette-primary-mainChannel) / 0.09); }
+.auth-illustration__tint { fill: rgb(var(--mui-palette-primary-mainChannel) / 0.15); }
+.auth-illustration__accent { fill: var(--mui-palette-primary-main); }
+.auth-illustration__muted { fill: rgba(var(--hk-on-surface), 0.25); }
+.auth-illustration__ink { fill: rgba(var(--hk-on-surface), 0.55); }
+.auth-illustration__rule { fill: rgba(var(--hk-on-surface), 0.1); }
+.auth-illustration__fine { fill: none; stroke: rgba(var(--hk-on-surface), 0.12); }
+.auth-illustration__accent-outline { fill: none; stroke: var(--mui-palette-primary-main); }
+.auth-illustration__shadow { filter: drop-shadow(0 4px 7px rgba(var(--hk-shadow-color), 0.065)); }
+
+@media (prefers-reduced-motion: no-preference) {
+  .auth-illustration__scene {
+    animation: auth-illustration-enter 480ms cubic-bezier(0.2, 0, 0, 1) both;
+    transform-origin: center;
+  }
+}
+
+@keyframes auth-illustration-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ---- the steps bar (from ezBookkeeping's StepsBar.vue) ---- */
+.steps-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.75rem 0.5rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.steps-bar__step {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.steps-bar__button {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.25rem;
+  font: inherit;
+  color: inherit;
+  text-align: start;
+  background: none;
+  border: 0;
+  border-radius: 0.5rem;
+}
+
+button.steps-bar__button {
+  cursor: pointer;
+}
+
+button.steps-bar__button:focus-visible {
+  outline: 2px solid var(--mui-palette-primary-main);
+  outline-offset: 2px;
+}
+
+.steps-bar__indicator {
+  width: 1.25rem;
+  height: 1.25rem;
+  margin: 0.125rem;
+  flex: none;
+  background: var(--mui-palette-background-paper);
+  border: 0.3125rem solid var(--mui-palette-primary-main);
+  border-radius: 50%;
+  opacity: 0.08;
+}
+
+.steps-bar__number {
+  font-size: 1.75rem;
+  line-height: 2.25rem;
+  font-weight: 400;
+}
+
+.steps-bar__text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.2;
+}
+
+.steps-bar__title {
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+.steps-bar__subtitle {
+  font-size: 0.75rem;
+  color: var(--mui-palette-text-secondary);
+}
+
+.steps-bar__line {
+  width: 3.75rem;
+  height: 0.1875rem;
+  border-radius: 0.1875rem;
+  background: var(--mui-palette-primary-main);
+  opacity: 0.08;
+}
+
+.steps-bar__step--active .steps-bar__indicator,
+.steps-bar__step--completed .steps-bar__indicator,
+.steps-bar__step--completed .steps-bar__line {
+  opacity: 1;
+}
+
+@media (max-width: 599px) {
+  .steps-bar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .steps-bar__line {
+    display: none;
+  }
+}

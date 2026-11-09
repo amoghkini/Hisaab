@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="theme-color" content="#c67e48" />
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+    <title>Hisaab</title>
+    <!-- Put the light or dark class on <html> before the first paint, from the mode MUI saved last time
+         ("mui-mode": light, dark or system), so the page never flashes the other theme. -->
+    <script>
+      try {
+        var mode = localStorage.getItem("mui-mode") || "system";
+        if (mode === "system") mode = matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+        document.documentElement.classList.add(mode === "dark" ? "dark" : "light");
+      } catch (e) {}
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
