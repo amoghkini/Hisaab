@@ -1,10 +1,14 @@
 import {
+  mdiAccountCircleOutline,
   mdiChevronDown,
   mdiCogOutline,
   mdiEyeOffOutline,
   mdiEyeOutline,
+  mdiListBoxOutline,
   mdiLogout,
+  mdiShapeOutline,
   mdiViewDashboardOutline,
+  mdiWalletOutline,
   mdiWeatherNight,
   mdiWeatherSunny,
 } from "@mdi/js";
@@ -28,12 +32,17 @@ import { useMe, useSetMe } from "@/auth/session";
 import { Logo } from "@/components/Logo";
 import { MdiIcon } from "@/components/MdiIcon";
 
-const NAV = [{ to: "/", label: "Overview", icon: mdiViewDashboardOutline, end: true }];
+const NAV = [
+  { to: "/", label: "Overview", icon: mdiViewDashboardOutline, end: true },
+  { to: "/transactions", label: "Transactions", icon: mdiListBoxOutline, end: false },
+  { to: "/accounts", label: "Accounts", icon: mdiWalletOutline, end: false },
+];
 
 /** The frame of the signed-in pages: a top bar with the navigation, and the page below it. */
 export function AppLayout() {
-  // The dashboard's 12-column grid uses the full width of the screen.
-  const wide = useLocation().pathname === "/";
+  // The dashboard's 12-column grid uses the full width of the screen; the accounts page has two columns.
+  const path = useLocation().pathname;
+  const maxWidth = path === "/" ? "none" : path.startsWith("/accounts") ? 1280 : 1080;
 
   return (
     <Box sx={{ minHeight: "100dvh" }}>
@@ -45,8 +54,8 @@ export function AppLayout() {
           zIndex: 10,
           display: "flex",
           alignItems: "center",
-          gap: { xs: 1, sm: 3 },
-          px: { xs: 2, sm: 3 },
+          gap: { xs: 0.5, sm: 3 },
+          px: { xs: 1, sm: 3 },
           height: 56,
           bgcolor: "background.paper",
           borderBottom: 1,
@@ -70,12 +79,19 @@ export function AppLayout() {
               variant="text"
               color="inherit"
               startIcon={<MdiIcon path={item.icon} />}
+              aria-label={item.label}
               sx={{
                 color: "text.secondary",
                 "&.active": { color: "primary.main", bgcolor: "rgb(var(--mui-palette-primary-mainChannel) / 0.08)" },
+                // Icons only on phones, so the items fit beside the logo and the buttons on the right.
+                minWidth: { xs: 36, sm: 64 },
+                px: { xs: 0.75, sm: 1 },
+                "& .MuiButton-startIcon": { mx: { xs: 0 }, mr: { sm: 1 } },
               }}
             >
-              {item.label}
+              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                {item.label}
+              </Box>
             </Button>
           ))}
         </Box>
@@ -87,7 +103,7 @@ export function AppLayout() {
         </Box>
       </Box>
 
-      <Box component="main" sx={{ maxWidth: wide ? "none" : 1080, mx: "auto", px: { xs: 2, sm: 3 }, py: 3 }}>
+      <Box component="main" sx={{ maxWidth, mx: "auto", px: { xs: 2, sm: 3 }, py: 3 }}>
         <Outlet />
       </Box>
     </Box>
@@ -161,9 +177,12 @@ function UserMenu() {
         onClick={(event) => setAnchor(event.currentTarget)}
         aria-haspopup="menu"
         aria-expanded={anchor !== null}
-        sx={{ ml: 0.5, maxWidth: 160 }}
+        aria-label={`Account menu for ${firstName}`}
+        sx={{ ml: { xs: 0, sm: 0.5 }, maxWidth: 160, minWidth: { xs: 40, sm: 64 }, px: { xs: 0.5, sm: 1 }, "& .MuiButton-endIcon": { ml: { xs: 0, sm: 1 } } }}
       >
-        <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+        {/* On phones, an icon instead of the name, so the navigation fits. */}
+        <MdiIcon path={mdiAccountCircleOutline} sx={{ display: { xs: "block", sm: "none" } }} />
+        <Box component="span" sx={{ display: { xs: "none", sm: "block" }, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
           {firstName}
         </Box>
       </Button>
@@ -192,6 +211,17 @@ function UserMenu() {
             <MdiIcon path={mdiCogOutline} fontSize="small" />
           </ListItemIcon>
           Settings
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setAnchor(null);
+            void navigate("/categories");
+          }}
+        >
+          <ListItemIcon>
+            <MdiIcon path={mdiShapeOutline} fontSize="small" />
+          </ListItemIcon>
+          Categories
         </MenuItem>
         <MenuItem disabled={logout.isPending} onClick={() => logout.mutate()}>
           <ListItemIcon>

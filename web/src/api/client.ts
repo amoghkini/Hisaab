@@ -21,6 +21,10 @@ interface ErrorPayload {
 async function toApiError(response: Response): Promise<ApiError> {
   try {
     const { error } = (await response.json()) as ErrorPayload;
+    // A 404 without our error shape is a path the server does not know, usually a backend older than this page.
+    if (!error && response.status === 404) {
+      return new ApiError(404, "endpoint_not_found", "The server does not support this yet. It may need to be updated or restarted.");
+    }
     const fields: Record<string, string> = {};
     for (const detail of error?.details ?? []) {
       if (detail.field && detail.message && !(detail.field in fields)) fields[detail.field] = detail.message;

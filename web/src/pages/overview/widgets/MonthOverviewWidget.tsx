@@ -1,4 +1,5 @@
 import { mdiEyeOffOutline, mdiEyeOutline, mdiRefresh } from "@mdi/js";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -15,7 +16,8 @@ import { WidgetCard } from "@/pages/overview/WidgetCard";
 export function MonthOverviewWidget() {
   const summary = usePeriodSummary("this_month");
   const money = useMoney();
-  const { showAmounts, toggleShowAmounts, notAvailable } = useOverview();
+  const { showAmounts, toggleShowAmounts } = useOverview();
+  const navigate = useNavigate();
   const client = useQueryClient();
   const refreshing = useIsFetching({ queryKey: [OVERVIEW_KEY] }) > 0;
   const monthName = new Date().toLocaleDateString(undefined, { month: "long" });
@@ -55,7 +57,7 @@ export function MonthOverviewWidget() {
           <strong className="overview-widget__amount">{summary.data ? money(summary.data.income) : <Skeleton width={90} />}</strong>
         </Box>
 
-        <Button className="overview-tonal-button" sx={{ mt: 2 }} onClick={() => notAvailable("The transaction list")}>
+        <Button className="overview-tonal-button" sx={{ mt: 2 }} onClick={() => void navigate("/transactions")}>
           View Details
         </Button>
       </Box>

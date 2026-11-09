@@ -1,4 +1,5 @@
 import { mdiRhombusSplitOutline, mdiSortVariant } from "@mdi/js";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
 import LinearProgress from "@mui/material/LinearProgress";
@@ -6,7 +7,7 @@ import Skeleton from "@mui/material/Skeleton";
 
 import type { PeriodRange } from "@/api/overview";
 import { CategoryIcon } from "@/components/CategoryIcon";
-import { useExpenseRanking, useMoney, useOverview } from "@/pages/overview/OverviewContext";
+import { useExpenseRanking, useMoney } from "@/pages/overview/OverviewContext";
 import { WidgetCard, WidgetEmpty, WidgetHeader } from "@/pages/overview/WidgetCard";
 
 function formatPercent(percent: number): string {
@@ -18,7 +19,7 @@ function formatPercent(percent: number): string {
 export function ExpenseRankingWidget({ range, itemCount }: { range: PeriodRange; itemCount: number }) {
   const ranking = useExpenseRanking(range, itemCount);
   const money = useMoney();
-  const { notAvailable } = useOverview();
+  const navigate = useNavigate();
   const items = ranking.data?.items ?? [];
 
   return (
@@ -33,7 +34,7 @@ export function ExpenseRankingWidget({ range, itemCount }: { range: PeriodRange;
         {items.map((item) => {
           const color = item.color ?? "var(--mui-palette-text-primary)";
           return (
-            <ButtonBase key={item.category_id} className="expense-ranking-widget__item" onClick={() => notAvailable("The transaction list")}>
+            <ButtonBase key={item.category_id} className="expense-ranking-widget__item" onClick={() => void navigate(item.category_id ? `/transactions?type=expense&category=${item.category_id}` : "/transactions?type=expense")}>
               <span className="overview-widget__item-icon">
                 <CategoryIcon icon={item.icon} color={item.color} size={20} />
               </span>

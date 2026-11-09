@@ -1,5 +1,5 @@
 import { useQuery } from "@tanstack/react-query";
-import { createContext, useCallback, useContext, useMemo, useState, type ReactNode } from "react";
+import { createContext, useCallback, useContext, useMemo, type ReactNode } from "react";
 
 import { usePrivacyMode } from "@/appearance/PrivacyMode";
 
@@ -12,7 +12,6 @@ import {
   type PeriodRange,
 } from "@/api/overview";
 import { useMe } from "@/auth/session";
-import { NotAvailableDialog } from "@/components/NotAvailableDialog";
 import { DEFAULT_PREFERENCES } from "@/appearance/preferences";
 import { formatAmount, HIDDEN_AMOUNT } from "@/lib/money";
 
@@ -22,28 +21,24 @@ export const OVERVIEW_KEY = "overview";
 interface OverviewContextValue {
   showAmounts: boolean;
   toggleShowAmounts: () => void;
-  /** Explain that a feature (such as the transaction list) is not built yet. */
-  notAvailable: (feature: string) => void;
 }
 
 const OverviewContext = createContext<OverviewContextValue | null>(null);
 
 /**
  * State the dashboard's widgets share: whether amounts are shown (the app-wide private mode, also switched from
- * the navbar), and the "not available yet" dialog.
+ * the navbar).
  */
 export function OverviewProvider({ children }: { children: ReactNode }) {
   const privacy = usePrivacyMode();
-  const [feature, setFeature] = useState<string | null>(null);
   const showAmounts = !privacy.hidden;
   const toggleShowAmounts = privacy.toggle;
 
-  const value = useMemo(() => ({ showAmounts, toggleShowAmounts, notAvailable: setFeature }), [showAmounts, toggleShowAmounts]);
+  const value = useMemo(() => ({ showAmounts, toggleShowAmounts,  }), [showAmounts, toggleShowAmounts]);
 
   return (
     <OverviewContext.Provider value={value}>
       {children}
-      <NotAvailableDialog feature={feature} onClose={() => setFeature(null)} />
     </OverviewContext.Provider>
   );
 }

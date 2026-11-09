@@ -10,6 +10,12 @@ The look of the login, sign-up and dashboard pages follows [ezBookkeeping](https
 - `src/pages/overview/layout.ts`: the dashboard's widgets and their places on the grid, from `DEFAULT_DESKTOP_OVERVIEW_LAYOUT` in `src/consts/overview_layout.ts`.
 - `src/pages/overview/widgets/*`: the dashboard widgets and their artwork, from `src/views/desktop/overview/widgets/`.
 - `src/pages/overview/overview.css`: the dashboard and widget styles, from `src/styles/desktop/components/_overview.scss` and `_overview-widget.scss`.
+- `src/pages/accounts/*`: the accounts page (totals and categories beside the account cards) and the add/edit dialog, from `src/views/desktop/accounts/ListPage.vue` and `list/dialogs/EditDialog.vue`.
+- `src/pages/transactions/*`: the transaction list (grouped by day, with type, account and category filters) and the add/edit dialog with its two-level category picker, from `src/views/desktop/transactions/ListPage.vue` and `list/dialogs/EditDialog.vue`.
+- `backend/app/transactions/models.py` (in this repository's backend): the transaction types and the transfer's source and destination amounts, from `pkg/models/transaction.go`.
+- `src/pages/categories/*`: the category list (by type, groups with their sub-categories) and the add/edit dialog, from `src/views/desktop/categories/ListPage.vue` and `list/dialogs/EditDialog.vue`.
+- `src/appearance/accountIcons.ts`: the account colours, from `src/consts/color.ts`.
+- `backend/app/accounts/models.py` (in this repository's backend): the account categories and which are liabilities, from `src/core/account.ts`.
 - `backend/app/categories/presets.py` (in this repository's backend): the preset category names, grouping and colours, from `src/consts/category.ts`.
 
 ezBookkeeping is distributed under the MIT License:

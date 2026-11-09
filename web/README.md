@@ -19,15 +19,18 @@ Open http://localhost:5173. Vite forwards `/api` to the backend on port 8000 (ch
 - `/login`: log in.
 - `/signup`: create an account in two steps (account details, then optional preset categories). This also logs you in.
 - `/`: the dashboard, for signed-in users only. Anyone else is sent to `/login`. See "Dashboard" below.
+- `/transactions`: expenses, income and transfers for one month, grouped by day, with filters (type, account, category, description) kept in the address. Add, edit and delete them in a dialog.
+- `/categories`: expense, income and transfer categories, each group with its sub-categories. Add, edit (name, icon, colour, group), hide, reorder and delete them; hidden ones are not offered for new transactions.
+- `/accounts`: bank accounts, cards, wallets and loans, grouped by category, with total assets, liabilities and net assets. Add, edit, hide, delete and reorder them.
 - `/profile`: account details, preferences (currency, first day of week, amount colours) and the theme colour.
 
 ## Dashboard
 
 A copy of ezBookkeeping's overview page: ten widgets on a 12-column grid (`src/pages/overview/layout.ts`), stacked on small screens.
 
-The numbers are sample data for now. Each widget loads its own data through one call in `src/api/overview.ts`, which answers from `src/api/overviewSample.ts`. To connect a widget to the backend, build its endpoint (the path and response shape are in the comment above each call) and replace the call's body with `request(...)`. Delete `overviewSample.ts` once every call is connected.
+Every widget shows real numbers. Each loads its own data through one call in `src/api/overview.ts`: the page works out the dates (today, this week, this month, this year) from the browser's clock and your first day of the week, and the backend's `/api/v1/overview/*` endpoints add up your transactions in them. Only income and expense count (transfers are neither), in your default currency.
 
-Buttons that lead to pages not built yet (View Details, a day, a category) explain that the feature is coming.
+View Details, a calendar day and a ranked category open the Transactions page.
 
 ## Theme colour
 

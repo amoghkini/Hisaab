@@ -1,7 +1,7 @@
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import CheckConstraint, DateTime, ForeignKey, Integer, String
+from sqlalchemy import Boolean, CheckConstraint, DateTime, ForeignKey, Integer, String, false
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db import Base, utcnow
@@ -27,4 +27,6 @@ class Category(Base):
     icon: Mapped[str] = mapped_column(String(64))  # a Material Design Icons name, such as "silverware-fork-knife"
     color: Mapped[str | None] = mapped_column(String(7))  # "#rrggbb"; None draws in the text colour
     display_order: Mapped[int] = mapped_column(Integer)
+    # Hidden categories stay on their transactions but are not offered for new ones.
+    hidden: Mapped[bool] = mapped_column(Boolean, default=False, server_default=false())
     created_at: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

@@ -1,17 +1,18 @@
 import { mdiCalendarMonthOutline } from "@mdi/js";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import ButtonBase from "@mui/material/ButtonBase";
 import Skeleton from "@mui/material/Skeleton";
 
 import { addDays, endOfMonth, startOfMonth, startOfWeek, toIsoDate, today } from "@/lib/dates";
-import { useDailyAmounts, useFirstDayOfWeek, useMoney, useOverview } from "@/pages/overview/OverviewContext";
+import { useDailyAmounts, useFirstDayOfWeek, useMoney } from "@/pages/overview/OverviewContext";
 import { WidgetCard, WidgetHeader } from "@/pages/overview/WidgetCard";
 
 /** This month as a calendar, with each day's income and expense under its date. */
 export function TransactionCalendarWidget() {
   const firstDayOfWeek = useFirstDayOfWeek();
   const money = useMoney();
-  const { notAvailable } = useOverview();
+  const navigate = useNavigate();
   const now = today();
   const monthStart = startOfMonth(now);
   const monthEnd = endOfMonth(now);
@@ -42,7 +43,7 @@ export function TransactionCalendarWidget() {
               key={key}
               className={`transaction-calendar-widget__day${isToday ? " transaction-calendar-widget__day--today" : ""}`}
               aria-label={day.toLocaleDateString(undefined, { dateStyle: "full" })}
-              onClick={() => notAvailable("The transaction list")}
+              onClick={() => void navigate("/transactions")}
             >
               <span className={amounts ? "transaction-calendar-widget__date transaction-calendar-widget__date--busy" : "transaction-calendar-widget__date"}>
                 {day.getDate()}

@@ -29,7 +29,7 @@ function DotLabel({ color, label }: { color: string; label: string }) {
 }
 
 /** Searchable list of every currency, shown as "INR - Indian Rupee". */
-export function CurrencyField({ value, onChange, disabled }: FieldProps<string>) {
+export function CurrencyField({ value, onChange, disabled, label = "Default Currency" }: FieldProps<string> & { label?: string }) {
   const options = allCurrencies();
   const selected = options.find((option) => option.code === value) ?? { code: value, name: value };
   return (
@@ -42,7 +42,7 @@ export function CurrencyField({ value, onChange, disabled }: FieldProps<string>)
       getOptionLabel={(option) => `${option.code} - ${option.name}`}
       isOptionEqualToValue={(option, current) => option.code === current.code}
       onChange={(_, option) => onChange(option.code)}
-      renderInput={(params) => <TextField {...params} label="Default Currency" placeholder="Default Currency" />}
+      renderInput={(params) => <TextField {...params} label={label} placeholder={label} />}
     />
   );
 }

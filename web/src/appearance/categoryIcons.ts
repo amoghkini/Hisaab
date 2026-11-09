@@ -156,6 +156,9 @@ const ICONS: Record<string, string> = {
   "wifi": mdiWifi,
 };
 
+/** Every category icon name, for the icon picker. */
+export const CATEGORY_ICON_NAMES = Object.keys(ICONS);
+
 /** The SVG path for a category icon name; a generic shape for a name this build does not know. */
 export function categoryIconPath(name: string): string {
   return ICONS[name] ?? mdiShapeOutline;

@@ -6,6 +6,7 @@ import {
   mdiLayersTripleOutline,
   mdiListBoxOutline,
 } from "@mdi/js";
+import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
@@ -17,7 +18,7 @@ import { useState } from "react";
 import type { PeriodRange, PeriodSummary } from "@/api/overview";
 import { MdiIcon } from "@/components/MdiIcon";
 import { parseIsoDate } from "@/lib/dates";
-import { useMoney, useOverview, usePeriodSummary } from "@/pages/overview/OverviewContext";
+import { useMoney, usePeriodSummary } from "@/pages/overview/OverviewContext";
 import { WidgetCard, WidgetHeader } from "@/pages/overview/WidgetCard";
 
 const PERIODS: Record<PeriodRange, { title: string; icon: string }> = {
@@ -46,7 +47,7 @@ function describeDates(summary: PeriodSummary): string {
 export function PeriodIncomeExpenseWidget({ range }: { range: PeriodRange }) {
   const summary = usePeriodSummary(range);
   const money = useMoney();
-  const { notAvailable } = useOverview();
+  const navigate = useNavigate();
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const period = PERIODS[range];
   const data = summary.data;
@@ -61,7 +62,7 @@ export function PeriodIncomeExpenseWidget({ range }: { range: PeriodRange }) {
           <MenuItem
             onClick={() => {
               setMenuAnchor(null);
-              notAvailable("The transaction list");
+              void navigate("/transactions");
             }}
           >
             <ListItemIcon>

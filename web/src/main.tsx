@@ -8,10 +8,13 @@ import { PrivacyModeProvider } from "@/appearance/PrivacyMode";
 import { ThemeColorProvider } from "@/appearance/ThemeColorProvider";
 import { GuestOnly, RequireAuth } from "@/auth/session";
 import { AppLayout } from "@/layouts/AppLayout";
+import { AccountsPage } from "@/pages/accounts/AccountsPage";
+import { CategoriesPage } from "@/pages/categories/CategoriesPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { SignupPage } from "@/pages/SignupPage";
+import { TransactionsPage } from "@/pages/transactions/TransactionsPage";
 import "@/styles.css";
 
 const queryClient = new QueryClient({ defaultOptions: { queries: { refetchOnWindowFocus: false } } });
@@ -34,6 +37,9 @@ createRoot(root).render(
               <Route element={<RequireAuth />}>
                 <Route element={<AppLayout />}>
                   <Route index element={<HomePage />} />
+                  <Route path="transactions" element={<TransactionsPage />} />
+                  <Route path="accounts" element={<AccountsPage />} />
+                  <Route path="categories" element={<CategoriesPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
               </Route>
