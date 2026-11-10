@@ -13,6 +13,7 @@ import { AccountsPage } from "@/pages/accounts/AccountsPage";
 import { CategoriesPage } from "@/pages/categories/CategoriesPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
+import { MarketsPage } from "@/pages/markets/MarketsPage";
 import { ProfilePage } from "@/pages/ProfilePage";
 import { SignupPage } from "@/pages/SignupPage";
 import { TransactionsPage } from "@/pages/transactions/TransactionsPage";
@@ -41,6 +42,7 @@ createRoot(root).render(
                   <Route path="transactions" element={<TransactionsPage />} />
                   <Route path="accounts" element={<AccountsPage />} />
                   <Route path="accounts/:accountId" element={<AccountEnquiryPage />} />
+                  <Route path="markets" element={<MarketsPage />} />
                   <Route path="categories" element={<CategoriesPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>
