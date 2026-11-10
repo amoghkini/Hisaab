@@ -251,3 +251,80 @@ def test_users_cannot_use_each_others_accounts_or_transactions(client: TestClien
     assert stolen_account.json()["error"]["details"][0]["field"] == "account_id"
     stolen_category = client.post(URL, json={**base, "account_id": own, "category_id": food})
     assert stolen_category.json()["error"]["details"][0]["field"] == "category_id"
+
+
+def test_list_filters_by_several_accounts_and_categories_amount_and_pages(client: TestClient) -> None:
+    bank = _account(client, "Bank")
+    card = _account(client, "Card", category="credit_card")
+    other = _account(client, "Other")
+    food = _category(client, "expense", "Food")
+    for account, cents in [(bank, 10_000), (card, 50_000), (other, 90_000)]:
+        _add(client, type="expense", account_id=account, category_id=food, amount=cents, occurred_at="2026-11-05T10:00")
+
+    def amounts(**params: object) -> list[int]:
+        response = client.get(URL, params={**NOVEMBER, **params})
+        assert response.status_code == 200, response.text
+        return sorted(item["amount"] for item in response.json()["items"])
+
+    assert amounts(account_id=[bank, card]) == [10_000, 50_000]
+    assert amounts(category_id=[food]) == [10_000, 50_000, 90_000]
+    assert amounts(amount="gt:10000") == [50_000, 90_000]
+    assert amounts(amount="lt:50000") == [10_000]
+    assert amounts(amount="eq:50000") == [50_000]
+    assert amounts(amount="ne:50000") == [10_000, 90_000]
+    assert amounts(amount="bt:90000:10000") == [10_000, 50_000, 90_000]
+    assert amounts(amount="nb:20000:60000") == [10_000, 90_000]
+    assert client.get(URL, params={**NOVEMBER, "amount": "gt:abc"}).status_code == 422
+
+    page = client.get(URL, params={**NOVEMBER, "limit": 2, "offset": 2}).json()
+    assert len(page["items"]) == 1
+    assert page["total_count"] == 3
+    assert page["total_expense"] == 150_000
+
+
+def test_daily_totals_cover_every_match_across_pages(client: TestClient) -> None:
+    bank = _account(client, "Bank")
+    dollars = _account(client, "US Bank", currency="USD")
+    salary = _category(client, "income", "Salary Income")
+    food = _category(client, "expense", "Food")
+    for hour in (9, 10, 11):
+        _add(
+            client, type="expense", account_id=bank, category_id=food, amount=1_000, occurred_at=f"2026-11-05T{hour:02d}:00"
+        )
+    _add(client, type="income", account_id=bank, category_id=salary, amount=50_000, occurred_at="2026-11-05T08:00")
+    _add(client, type="expense", account_id=dollars, category_id=food, amount=700, occurred_at="2026-11-05T12:00")
+    _add(client, type="expense", account_id=bank, category_id=food, amount=2_000, occurred_at="2026-11-03T12:00")
+
+    # A page of two splits 5 November; its totals still count the whole day.
+    assert len(client.get(URL, params={**NOVEMBER, "limit": 2}).json()["items"]) == 2
+    response = client.get(f"{URL}/daily-totals", params=NOVEMBER)
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["currency"] == "INR"
+    assert body["days"] == [
+        {"day": "2026-11-05", "income": 50_000, "expense": 3_000, "count": 5},
+        {"day": "2026-11-03", "income": 0, "expense": 2_000, "count": 1},
+    ]
+
+    # The same filters as the list.
+    filtered = client.get(f"{URL}/daily-totals", params={**NOVEMBER, "type": "expense", "amount": "gt:1500"}).json()
+    assert filtered["days"] == [{"day": "2026-11-03", "income": 0, "expense": 2_000, "count": 1}]
+    assert client.get(f"{URL}/daily-totals", params={"start": "2026-11-30", "end": "2026-11-01"}).status_code == 422
+
+
+def test_list_filters_by_several_types(client: TestClient) -> None:
+    bank = _account(client, "Bank")
+    cash = _account(client, "Cash", category="cash")
+    _add(client, type="expense", account_id=bank, category_id=_category(client, "expense", "Food"), amount=100)
+    _add(client, type="income", account_id=bank, category_id=_category(client, "income", "Salary Income"), amount=200)
+    _add(client, type="transfer", account_id=bank, to_account_id=cash, amount=300)
+
+    def types(*kinds: str) -> list[str]:
+        return sorted(
+            item["type"] for item in client.get(URL, params={**NOVEMBER, "type": list(kinds)}).json()["items"]
+        )
+
+    assert types("expense", "income") == ["expense", "income"]
+    assert types("transfer") == ["transfer"]
+    assert types() == ["expense", "income", "transfer"]
+    assert client.get(URL, params={**NOVEMBER, "type": "refund"}).status_code == 422

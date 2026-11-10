@@ -4,7 +4,7 @@ from typing import Annotated
 from pydantic import AfterValidator, BaseModel, ConfigDict, Field
 
 from app.accounts.schemas import MAX_AMOUNT
-from app.transactions.models import TransactionType
+from app.transactions.models import TransactionSource, TransactionType
 
 PositiveAmount = Annotated[int, Field(gt=0, le=MAX_AMOUNT, description="In the currency's smallest unit")]
 
@@ -43,6 +43,8 @@ class TransactionOut(BaseModel):
     to_account_id: int | None
     to_amount: int | None
     comment: str
+    source: TransactionSource
+    group_id: str | None
 
 
 class TransactionListOut(BaseModel):
@@ -50,7 +52,22 @@ class TransactionListOut(BaseModel):
 
     start: date
     end: date
-    items: list[TransactionOut]
+    items: list[TransactionOut] = Field(description="The page asked for, or every match when no limit is given.")
+    total_count: int = Field(description="Every match, on all pages.")
     currency: str = Field(description="The user's default currency, which the totals are in.")
     total_income: int = Field(description="Income into accounts in the default currency.")
     total_expense: int = Field(description="Expense from accounts in the default currency.")
+
+
+class DayTotalOut(BaseModel):
+    """One day's matching transactions, added up. Only accounts in the default currency are counted in the sums."""
+
+    day: date
+    income: int = 0
+    expense: int = 0
+    count: int = Field(0, description="Every matching transaction that day, in any currency.")
+
+
+class DailyTotalsOut(BaseModel):
+    currency: str = Field(description="The user's default currency, which the sums are in.")
+    days: list[DayTotalOut] = Field(description="Days with at least one match, newest first.")

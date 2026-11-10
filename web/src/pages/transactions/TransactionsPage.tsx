@@ -1,18 +1,47 @@
-import { mdiArrowRight, mdiBankTransfer, mdiChevronLeft, mdiChevronRight, mdiClose, mdiMagnify, mdiPlus, mdiReceiptTextOutline } from "@mdi/js";
+import {
+  mdiArrowRight,
+  mdiBankTransfer,
+  mdiCalendarMonthOutline,
+  mdiCalendarRange,
+  mdiChevronLeft,
+  mdiChevronRight,
+  mdiClose,
+  mdiDownload,
+  mdiFormatListBulleted,
+  mdiMagnify,
+  mdiPlus,
+  mdiReceiptTextOutline,
+  mdiRefresh,
+} from "@mdi/js";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import ButtonBase from "@mui/material/ButtonBase";
+import Checkbox from "@mui/material/Checkbox";
+import Chip from "@mui/material/Chip";
+import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import InputAdornment from "@mui/material/InputAdornment";
 import LinearProgress from "@mui/material/LinearProgress";
 import ListSubheader from "@mui/material/ListSubheader";
+import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Pagination from "@mui/material/Pagination";
 import Paper from "@mui/material/Paper";
 import Skeleton from "@mui/material/Skeleton";
 import Snackbar from "@mui/material/Snackbar";
+import Table from "@mui/material/Table";
+import TableBody from "@mui/material/TableBody";
+import TableCell from "@mui/material/TableCell";
+import TableHead from "@mui/material/TableHead";
+import TableRow from "@mui/material/TableRow";
 import TextField from "@mui/material/TextField";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -21,24 +50,49 @@ import { useSearchParams } from "react-router-dom";
 import { ACCOUNT_CATEGORIES, type Account } from "@/api/accounts";
 import type { Category } from "@/api/categories";
 import { errorMessage } from "@/api/client";
-import { TRANSACTION_TYPES, type Transaction, type TransactionFilters, type TransactionType } from "@/api/transactions";
+import { TRANSACTION_TYPES, fetchTransactions, type Transaction, type TransactionFilters, type TransactionType } from "@/api/transactions";
 import { usePrivacyMode } from "@/appearance/PrivacyMode";
 import { useMe } from "@/auth/session";
+import { AccountIcon } from "@/components/AccountIcon";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { MdiIcon } from "@/components/MdiIcon";
-import { addMonths, endOfMonth, parseIsoDate, startOfMonth, toIsoDate, today } from "@/lib/dates";
+import { endOfMonth, parseIsoDate, startOfMonth, toIsoDate } from "@/lib/dates";
 import { HIDDEN_AMOUNT, formatAmount } from "@/lib/money";
 import { useAccounts } from "@/pages/accounts/queries";
+import {
+  DATE_RANGE_PRESETS,
+  MAX_RANGE_DAYS,
+  daysIn,
+  isIsoDate,
+  matchingPreset,
+  presetSpan,
+  recentMonths,
+  shiftSpan,
+  spanLabel,
+  type DateSpan,
+} from "@/pages/transactions/dateRanges";
+import { exportTransactions } from "@/pages/transactions/exportTransactions";
+import { TransactionCalendar } from "@/pages/transactions/TransactionCalendar";
 import { TransactionDialog, type TransactionDialogTarget } from "@/pages/transactions/TransactionDialog";
-import { categoriesById, useCategories, useTransactions } from "@/pages/transactions/queries";
+import {
+  AllItem,
+  AmountFilterMenu,
+  FilterItem,
+  HeaderFilter,
+  MultiSelectDialog,
+  MultipleItem,
+  amountFilterLabel,
+  parseAmountFilter,
+  type ChoiceGroup,
+} from "@/pages/transactions/TransactionFilters";
+import { categoriesById, useCategories, useDailyTotals, useTransactions } from "@/pages/transactions/queries";
 
-const MONTH_FORMAT = new Intl.DateTimeFormat(undefined, { month: "long", year: "numeric" });
-const DAY_FORMAT = new Intl.DateTimeFormat(undefined, { weekday: "short", day: "numeric", month: "short" });
+const DAY_FORMAT = new Intl.DateTimeFormat(undefined, { day: "numeric", month: "short", year: "numeric" });
+const WEEKDAY_FORMAT = new Intl.DateTimeFormat(undefined, { weekday: "short" });
+const PAGE_SIZES = [15, 25, 50, 100, 200];
+const DEFAULT_PAGE_SIZE = 50;
 
-/** "2026-11" for the month a date is in. */
-function monthKey(date: Date): string {
-  return toIsoDate(date).slice(0, 7);
-}
+type View = "list" | "calendar";
 
 function useMoney() {
   const { hidden } = usePrivacyMode();
@@ -58,18 +112,107 @@ function signedAmount(money: (minor: number, currency: string) => string, transa
   return transaction.type === "expense" ? `−${text}` : transaction.type === "income" ? `+${text}` : text;
 }
 
+function ids(values: string[]): number[] {
+  return values.map(Number).filter((value) => Number.isInteger(value) && value > 0);
+}
+
 function Figure({ label, value, color }: { label: string; value: ReactNode; color?: string }) {
   return (
-    <Box sx={{ minWidth: 0 }}>
+    <Box sx={{ minWidth: 0, textAlign: { sm: "end" } }}>
       <Typography variant="body2" color="text.secondary">
         {label}
       </Typography>
-      <Typography sx={{ fontSize: { xs: "1rem", sm: "1.25rem" }, fontWeight: 500, color, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{value}</Typography>
+      <Typography sx={{ fontSize: "1.125rem", fontWeight: 500, color, whiteSpace: "nowrap" }}>{value}</Typography>
     </Box>
   );
 }
 
-/** One transaction: category, description and account on the left, the amount on the right. */
+/** A sidebar link: a date range, a recent month. */
+function NavItem({ selected, disabled, onClick, children }: { selected: boolean; disabled?: boolean; onClick: () => void; children: ReactNode }) {
+  return (
+    <Box
+      component="button"
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-current={selected ? "true" : undefined}
+      sx={{
+        display: "block",
+        width: { xs: "auto", md: "100%" },
+        flex: { xs: "none", md: "initial" },
+        px: 1.5,
+        py: 0.75,
+        border: 0,
+        borderRadius: 1.5,
+        cursor: "pointer",
+        textAlign: "start",
+        whiteSpace: "nowrap",
+        font: "inherit",
+        fontSize: "0.875rem",
+        fontWeight: selected ? 600 : 400,
+        color: selected ? "primary.main" : "text.primary",
+        bgcolor: selected ? "rgb(var(--mui-palette-primary-mainChannel) / 0.1)" : "transparent",
+        "&:hover": { bgcolor: selected ? "rgb(var(--mui-palette-primary-mainChannel) / 0.14)" : "action.hover" },
+        "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main" },
+        "&:disabled": { opacity: 0.5, cursor: "default" },
+      }}
+    >
+      {children}
+    </Box>
+  );
+}
+
+function SidebarLabel({ children }: { children: ReactNode }) {
+  return (
+    <Typography variant="body2" color="text.secondary" sx={{ px: 1.5, mb: 0.75 }}>
+      {children}
+    </Typography>
+  );
+}
+
+/** Pick any start and end date, up to the most days one list can show. */
+function CustomRangeDialog({ open, initial, onApply, onClose }: { open: boolean; initial: DateSpan; onApply: (range: DateSpan) => void; onClose: () => void }) {
+  return (
+    <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
+      {/* Remounted on each open, so it starts from the range on screen. */}
+      {open ? <CustomRangeBody initial={initial} onApply={onApply} onClose={onClose} /> : null}
+    </Dialog>
+  );
+}
+
+function CustomRangeBody({ initial, onApply, onClose }: { initial: DateSpan; onApply: (range: DateSpan) => void; onClose: () => void }) {
+  const [start, setStart] = useState(initial.start);
+  const [end, setEnd] = useState(initial.end);
+  const valid = isIsoDate(start) && isIsoDate(end) && start <= end;
+  const tooLong = valid && daysIn({ start, end }) > MAX_RANGE_DAYS;
+
+  return (
+    <>
+      <DialogTitle>Custom date range</DialogTitle>
+      <DialogContent>
+        <Box sx={{ display: "flex", gap: 2, pt: 1 }}>
+          <TextField label="From" type="date" value={start} onChange={(event) => setStart(event.target.value)} fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+          <TextField label="To" type="date" value={end} onChange={(event) => setEnd(event.target.value)} fullWidth slotProps={{ inputLabel: { shrink: true } }} />
+        </Box>
+        {valid && !tooLong ? null : (
+          <Typography variant="body2" color="error" sx={{ mt: 1.5 }}>
+            {tooLong ? `Choose at most ${MAX_RANGE_DAYS} days.` : "The end date must not be before the start date."}
+          </Typography>
+        )}
+      </DialogContent>
+      <DialogActions sx={{ px: 3, pb: 2 }}>
+        <Button variant="text" color="inherit" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button disabled={!valid || tooLong} onClick={() => onApply({ start, end })}>
+          Apply
+        </Button>
+      </DialogActions>
+    </>
+  );
+}
+
+/** One transaction as a table row: time, category, amount, account, description. Like ezBookkeeping's table. */
 function TransactionRow({
   transaction,
   accounts,
@@ -87,89 +230,67 @@ function TransactionRow({
   const account = accounts.get(transaction.account_id);
   const toAccount = transaction.to_account_id === null ? undefined : accounts.get(transaction.to_account_id);
   const currency = account?.currency ?? "INR";
-  const title = category?.name ?? (transaction.type === "transfer" ? "Transfer" : "No category");
   const crossCurrency = transaction.type === "transfer" && toAccount && toAccount.currency !== currency;
 
   return (
-    <ButtonBase
+    <TableRow
+      hover
+      tabIndex={0}
       onClick={onOpen}
-      sx={{
-        display: "grid",
-        gridTemplateColumns: { xs: "auto minmax(0, 1fr) auto", md: "52px auto minmax(0, 1.4fr) minmax(0, 1fr) auto" },
-        alignItems: "center",
-        columnGap: 1.5,
-        width: "100%",
-        px: { xs: 2, sm: 3 },
-        py: 1.25,
-        textAlign: "start",
-        "&:hover": { bgcolor: "action.hover" },
-        "&:focus-visible": { bgcolor: "action.focus" },
+      onKeyDown={(event) => {
+        if (event.key === "Enter" || event.key === " ") {
+          event.preventDefault();
+          onOpen();
+        }
       }}
+      sx={{ cursor: "pointer", "& td": { py: 1.25 }, "&:focus-visible": { outline: "2px solid", outlineColor: "primary.main", outlineOffset: -2 } }}
     >
-      <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", md: "block" } }}>
-        {transaction.occurred_at.slice(11, 16)}
-      </Typography>
-      <Box sx={{ width: 36, height: 36, display: "grid", placeItems: "center", borderRadius: "50%", bgcolor: "action.hover" }}>
-        {category ? <CategoryIcon icon={category.icon} color={category.color} size={20} /> : <MdiIcon path={mdiBankTransfer} sx={{ fontSize: 20 }} />}
-      </Box>
-      <Box sx={{ minWidth: 0 }}>
-        <Typography sx={{ fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {title}
-          {parent ? (
-            <Typography component="span" variant="body2" color="text.secondary">
-              {" "}
-              · {parent.name}
+      <TableCell sx={{ color: "text.secondary", whiteSpace: "nowrap" }}>{transaction.occurred_at.slice(11, 16)}</TableCell>
+      <TableCell>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, minWidth: 0 }}>
+          {category ? <CategoryIcon icon={category.icon} color={category.color} size={22} /> : <MdiIcon path={mdiBankTransfer} sx={{ fontSize: 22 }} />}
+          <Box sx={{ minWidth: 0 }}>
+            <Typography variant="body2" sx={{ fontWeight: 500, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>
+              {category?.name ?? (transaction.type === "transfer" ? "Transfer" : "No category")}
             </Typography>
-          ) : null}
-        </Typography>
-        <Typography variant="body2" color="text.secondary" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {transaction.comment || <Box component="span" sx={{ display: { md: "none" } }}>{accountText(account, toAccount)}</Box>}
-          {transaction.comment ? <Box component="span" sx={{ display: { md: "none" } }}> · {accountText(account, toAccount)}</Box> : null}
-        </Typography>
-      </Box>
-      <Typography variant="body2" color="text.secondary" sx={{ display: { xs: "none", md: "flex" }, alignItems: "center", gap: 0.5, minWidth: 0 }}>
-        <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {account?.name ?? "Unknown account"}
+            {parent ? (
+              <Typography variant="caption" color="text.secondary">
+                {parent.name}
+              </Typography>
+            ) : null}
+          </Box>
         </Box>
-        {toAccount ? (
-          <>
-            <MdiIcon path={mdiArrowRight} sx={{ fontSize: 16, flex: "none" }} />
-            <Box component="span" sx={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-              {toAccount.name}
-            </Box>
-          </>
-        ) : null}
-      </Typography>
-      <Box sx={{ textAlign: "end" }}>
-        <Typography sx={{ fontWeight: 600, color: TYPE_COLORS[transaction.type], whiteSpace: "nowrap" }}>{signedAmount(money, transaction, currency)}</Typography>
+      </TableCell>
+      <TableCell sx={{ whiteSpace: "nowrap" }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, color: TYPE_COLORS[transaction.type] }}>
+          {signedAmount(money, transaction, currency)}
+        </Typography>
         {crossCurrency && transaction.to_amount !== null ? (
-          <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: "nowrap" }}>
+          <Typography variant="caption" color="text.secondary">
             → {money(transaction.to_amount, toAccount.currency)}
           </Typography>
         ) : null}
-      </Box>
-    </ButtonBase>
+      </TableCell>
+      <TableCell>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, color: "text.secondary", fontSize: "0.875rem", whiteSpace: "nowrap" }}>
+          {account?.name ?? "Unknown account"}
+          {toAccount ? (
+            <>
+              <MdiIcon path={mdiArrowRight} sx={{ fontSize: 15 }} />
+              {toAccount.name}
+            </>
+          ) : null}
+        </Box>
+      </TableCell>
+      <TableCell sx={{ color: "text.secondary", maxWidth: 360, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{transaction.comment}</TableCell>
+    </TableRow>
   );
 }
 
-function accountText(account: Account | undefined, toAccount: Account | undefined): string {
-  const name = account?.name ?? "Unknown account";
-  return toAccount ? `${name} → ${toAccount.name}` : name;
-}
-
-/** Each day's transactions under a heading with the day's income and expense. */
-function groupByDay(items: Transaction[]): { day: string; items: Transaction[] }[] {
-  const groups: { day: string; items: Transaction[] }[] = [];
-  for (const item of items) {
-    const day = item.occurred_at.slice(0, 10);
-    const last = groups[groups.length - 1];
-    if (last?.day === day) last.items.push(item);
-    else groups.push({ day, items: [item] });
-  }
-  return groups;
-}
-
-/** The transaction list: a month at a time, filtered by type, account, category and text. Like ezBookkeeping's. */
+/**
+ * The transaction list, like ezBookkeeping's: a sidebar of views, types and date ranges; a table whose headings
+ * filter by date, category, amount and account; a calendar view; paging; and export.
+ */
 export function TransactionsPage() {
   const me = useMe();
   const money = useMoney();
@@ -179,266 +300,595 @@ export function TransactionsPage() {
   const [search, setSearch] = useState(params.get("q") ?? "");
   const [dialog, setDialog] = useState<TransactionDialogTarget | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [customOpen, setCustomOpen] = useState(false);
+  const [multiOpen, setMultiOpen] = useState<"account" | "category" | null>(null);
+  const [exportAnchor, setExportAnchor] = useState<HTMLElement | null>(null);
+  const [exporting, setExporting] = useState(false);
   const currency = me.data?.default_currency ?? "INR";
+  const firstDayOfWeek = me.data?.first_day_of_week ?? 0;
 
-  // The filters live in the address, so a link (such as an account's "Transactions" button) can open a view.
-  const month = /^\d{4}-\d{2}$/.test(params.get("month") ?? "") ? params.get("month")! : monthKey(today());
-  const monthStart = parseIsoDate(`${month}-01`);
-  const type = TRANSACTION_TYPES.some((option) => option.value === params.get("type")) ? (params.get("type") as TransactionType) : undefined;
-  const accountId = Number(params.get("account")) || undefined;
-  const categoryId = Number(params.get("category")) || undefined;
+  // Every filter lives in the address, so a link (such as an account's "Transactions" button) can open a view.
+  const view: View = params.get("view") === "calendar" ? "calendar" : "list";
+  const thisMonth = presetSpan("this_month", firstDayOfWeek);
+  const from = params.get("from");
+  const to = params.get("to");
+  const chosenRange: DateSpan = isIsoDate(from) && isIsoDate(to) && from <= to && daysIn({ start: from, end: to }) <= MAX_RANGE_DAYS ? { start: from, end: to } : thisMonth;
+  // The calendar shows the whole month the range starts in.
+  const calendarMonth = parseIsoDate(chosenRange.start);
+  const range: DateSpan = view === "calendar" ? { start: toIsoDate(startOfMonth(calendarMonth)), end: toIsoDate(endOfMonth(calendarMonth)) } : chosenRange;
+  const preset = matchingPreset(range, firstDayOfWeek);
+  const types = TRANSACTION_TYPES.map((option) => option.value).filter((value) => params.getAll("type").includes(value));
+  const accountIds = ids(params.getAll("account"));
+  const categoryIds = ids(params.getAll("category"));
   const query = params.get("q") ?? "";
+  const amount = parseAmountFilter(params.get("amount")) ? params.get("amount")! : undefined;
+  const pageSize = PAGE_SIZES.includes(Number(params.get("per"))) ? Number(params.get("per")) : DEFAULT_PAGE_SIZE;
+  const page = Math.max(1, Number(params.get("page")) || 1);
 
-  function setParam(key: string, value: string | undefined): void {
+  /** Change some filters; any change but the page goes back to page one. */
+  function update(changes: Record<string, string | string[] | undefined>): void {
     setParams(
       (current) => {
         const next = new URLSearchParams(current);
-        if (value) next.set(key, value);
-        else next.delete(key);
+        for (const [key, value] of Object.entries(changes)) {
+          next.delete(key);
+          for (const each of Array.isArray(value) ? value : value ? [value] : []) next.append(key, each);
+        }
+        if (!("page" in changes)) next.delete("page");
         return next;
       },
       { replace: true },
     );
   }
+  const setRange = (next: DateSpan) => update({ from: next.start, to: next.end });
 
   // Search as the person types, after a short pause.
   useEffect(() => {
     const timer = setTimeout(() => {
-      if (search.trim() !== query) setParam("q", search.trim() || undefined);
+      if (search.trim() !== query) update({ q: search.trim() || undefined });
     }, 300);
     return () => clearTimeout(timer);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- setParam is stable enough; only the text matters
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only the text matters
   }, [search]);
 
-  const filters: TransactionFilters = {
-    start: toIsoDate(startOfMonth(monthStart)),
-    end: toIsoDate(endOfMonth(monthStart)),
-    type,
-    account_id: accountId,
-    category_id: categoryId,
+  const baseFilters: TransactionFilters = {
+    start: range.start,
+    end: range.end,
+    types: types.length > 0 ? types : undefined,
+    account_ids: accountIds.length > 0 ? accountIds : undefined,
+    category_ids: categoryIds.length > 0 ? categoryIds : undefined,
     q: query || undefined,
+    amount,
   };
+  const filters: TransactionFilters = view === "list" ? { ...baseFilters, limit: pageSize, offset: (page - 1) * pageSize } : baseFilters;
   const transactions = useTransactions(filters);
+  const dailyTotals = useDailyTotals(baseFilters, view === "list");
+  const totalsByDay = useMemo(() => new Map((dailyTotals.data?.days ?? []).map((total) => [total.day, total])), [dailyTotals.data]);
 
-  const accountsById = useMemo(() => new Map((accounts.data ?? []).map((account) => [account.id, account])), [accounts.data]);
+  const allAccounts = useMemo(() => accounts.data ?? [], [accounts.data]);
+  const accountsById = useMemo(() => new Map(allAccounts.map((account) => [account.id, account])), [allAccounts]);
   const categoryMap = useMemo(() => categoriesById(categories.data), [categories.data]);
   const data = transactions.data;
-  const groups = useMemo(() => groupByDay(data?.items ?? []), [data]);
-  const filtered = Boolean(type || accountId || categoryId || query);
-  const isThisMonth = month === monthKey(today());
+  const pageCount = data ? Math.max(1, Math.ceil(data.total_count / pageSize)) : 1;
+  const filtered = Boolean(types.length || accountIds.length || categoryIds.length || query || amount);
+  const ready = accounts.isSuccess;
 
-  function dayTotals(items: Transaction[]): { income: number; expense: number } {
-    let income = 0;
-    let expense = 0;
-    for (const item of items) {
-      if (accountsById.get(item.account_id)?.currency !== currency) continue;
-      if (item.type === "income") income += item.amount;
-      if (item.type === "expense") expense += item.amount;
-    }
-    return { income, expense };
+  // A page past the end (after deleting, or a narrower filter) shows the last one instead.
+  useEffect(() => {
+    if (view === "list" && data && page > pageCount) update({ page: pageCount > 1 ? String(pageCount) : undefined });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when the count changes
+  }, [data?.total_count, page, pageCount, view]);
+
+  const topCategories = (categories.data ?? []).filter((top) => types.length === 0 || types.includes(top.type));
+
+  const accountGroups: ChoiceGroup[] = ACCOUNT_CATEGORIES.flatMap((info) => {
+    const items = allAccounts.filter((account) => account.category === info.value && (!account.hidden || accountIds.includes(account.id)));
+    return items.length === 0
+      ? []
+      : [{ label: info.name, items: items.map((account) => ({ id: account.id, name: account.name, icon: <AccountIcon icon={account.icon} color={account.color} size={18} /> })) }];
+  });
+  const categoryGroups: ChoiceGroup[] = TRANSACTION_TYPES.filter((option) => types.length === 0 || types.includes(option.value)).flatMap((option) => {
+    const tops = topCategories.filter((top) => top.type === option.value);
+    if (tops.length === 0) return [];
+    return [
+      {
+        label: option.name,
+        items: tops.flatMap((top) => [
+          { id: top.id, name: top.name, icon: <CategoryIcon icon={top.icon} color={top.color} size={18} /> },
+          ...top.sub_categories
+            .filter((sub) => !sub.hidden || categoryIds.includes(sub.id))
+            .map((sub) => ({ id: sub.id, name: sub.name, icon: <CategoryIcon icon={sub.icon} color={sub.color} size={18} />, indent: true })),
+        ]),
+      },
+    ];
+  });
+
+  // What is filtered, as chips that can be removed one at a time.
+  const chips: { key: string; label: string; onDelete: () => void }[] = [
+    ...accountIds.map((id) => ({
+      key: `account-${id}`,
+      label: accountsById.get(id)?.name ?? "Unknown account",
+      onDelete: () => update({ account: accountIds.filter((other) => other !== id).map(String) }),
+    })),
+    ...categoryIds.map((id) => ({
+      key: `category-${id}`,
+      label: categoryMap.get(id)?.name ?? "Unknown category",
+      onDelete: () => update({ category: categoryIds.filter((other) => other !== id).map(String) }),
+    })),
+    ...(amount ? [{ key: "amount", label: `Amount ${amountFilterLabel(amount, currency)}`, onDelete: () => update({ amount: undefined }) }] : []),
+    ...(query ? [{ key: "q", label: `“${query}”`, onDelete: () => setSearch("") }] : []),
+  ];
+
+  function clearFilters(): void {
+    setSearch("");
+    update({ type: undefined, account: undefined, category: undefined, q: undefined, amount: undefined });
   }
 
-  const ready = accounts.isSuccess;
+  async function runExport(format: "csv" | "tsv"): Promise<void> {
+    setExportAnchor(null);
+    setExporting(true);
+    try {
+      // Every match, not just this page.
+      const all = await fetchTransactions(baseFilters);
+      exportTransactions(all.items, accountsById, categoryMap, format, `hisaab-transactions-${range.start}-to-${range.end}`);
+      setMessage(`Exported ${all.items.length} transaction${all.items.length === 1 ? "" : "s"}`);
+    } catch (error) {
+      setMessage(errorMessage(error));
+    } finally {
+      setExporting(false);
+    }
+  }
+
+  const rows: ReactNode[] = [];
+  (data?.items ?? []).forEach((item, index, items) => {
+    const day = item.occurred_at.slice(0, 10);
+    if (index === 0 || items[index - 1]!.occurred_at.slice(0, 10) !== day) {
+      const date = parseIsoDate(day);
+      const dayTotal = totalsByDay.get(day);
+      rows.push(
+        <TableRow key={`day-${day}`}>
+          <TableCell colSpan={5} sx={{ bgcolor: "action.hover", py: 0.75 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                {DAY_FORMAT.format(date)}
+              </Typography>
+              <Chip size="small" label={WEEKDAY_FORMAT.format(date)} sx={{ height: 20, fontSize: "0.75rem" }} />
+              <Box sx={{ flex: 1 }} />
+              {/* The whole day's totals, even when the day carries on to another page. */}
+              {dayTotal ? (
+                <>
+                  {dayTotal.count > 0 ? (
+                    <Typography variant="caption" color="text.secondary">
+                      {dayTotal.count} {dayTotal.count === 1 ? "item" : "items"}
+                    </Typography>
+                  ) : null}
+                  {dayTotal.income > 0 ? (
+                    <Typography variant="body2" sx={{ color: "var(--hk-income-color)", fontWeight: 500 }}>
+                      +{money(dayTotal.income, dailyTotals.data?.currency ?? currency)}
+                    </Typography>
+                  ) : null}
+                  {dayTotal.expense > 0 ? (
+                    <Typography variant="body2" sx={{ color: "var(--hk-expense-color)", fontWeight: 500 }}>
+                      −{money(dayTotal.expense, dailyTotals.data?.currency ?? currency)}
+                    </Typography>
+                  ) : null}
+                </>
+              ) : dailyTotals.isPending ? (
+                <Skeleton width={120} />
+              ) : null}
+            </Box>
+          </TableCell>
+        </TableRow>,
+      );
+    }
+    rows.push(<TransactionRow key={item.id} transaction={item} accounts={accountsById} categories={categoryMap} onOpen={() => setDialog({ mode: "edit", transaction: item })} />);
+  });
+
+  const onlyAccount = accountIds.length === 1 ? accountIds[0] : undefined;
 
   return (
     <>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2, mb: 2.5, flexWrap: "wrap" }}>
-        <Box sx={{ flex: 1, minWidth: 200 }}>
-          <Typography variant="h5" component="h1">
-            Transactions
-          </Typography>
-          <Typography variant="body2" color="text.secondary">
-            Your expenses, income and transfers, a month at a time.
-          </Typography>
-        </Box>
-        <Button startIcon={<MdiIcon path={mdiPlus} />} disabled={!ready} onClick={() => setDialog({ mode: "add", accountId })}>
-          Add Transaction
-        </Button>
+      <Box sx={{ mb: 2.5 }}>
+        <Typography variant="h5" component="h1">
+          Transactions
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Your expenses, income and transfers.
+        </Typography>
       </Box>
 
-      <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden" }}>
-        {/* The month, and the filters. */}
-        <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, px: { xs: 2, sm: 3 }, pt: 2, pb: 1.5 }}>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-            <Tooltip title="Previous month">
-              <IconButton aria-label="Previous month" onClick={() => setParam("month", monthKey(addMonths(monthStart, -1)))}>
-                <MdiIcon path={mdiChevronLeft} />
-              </IconButton>
-            </Tooltip>
-            <Typography component="h2" sx={{ fontSize: "1.0625rem", fontWeight: 600, minWidth: 140, textAlign: "center" }}>
-              {MONTH_FORMAT.format(monthStart)}
-            </Typography>
-            <Tooltip title="Next month">
-              <IconButton aria-label="Next month" onClick={() => setParam("month", monthKey(addMonths(monthStart, 1)))}>
-                <MdiIcon path={mdiChevronRight} />
-              </IconButton>
-            </Tooltip>
-            {!isThisMonth ? (
-              <Button size="small" variant="text" onClick={() => setParam("month", undefined)}>
-                This Month
-              </Button>
+      <Box sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "232px minmax(0, 1fr)" }, gap: 2.5, alignItems: "start" }}>
+        {/* The sidebar: view, type, page size and date ranges. */}
+        <Paper variant="outlined" sx={{ borderRadius: 3, p: 2, position: { md: "sticky" }, top: { md: 80 }, display: "flex", flexDirection: "column", gap: 2 }}>
+          <ToggleButtonGroup
+            exclusive
+            fullWidth
+            size="small"
+            value={view}
+            onChange={(_, next: View | null) => next && update({ view: next === "list" ? undefined : next })}
+            aria-label="View"
+          >
+            <ToggleButton value="list" sx={{ gap: 0.75 }}>
+              <MdiIcon path={mdiFormatListBulleted} fontSize="small" />
+              List
+            </ToggleButton>
+            <ToggleButton value="calendar" sx={{ gap: 0.75 }}>
+              <MdiIcon path={mdiCalendarMonthOutline} fontSize="small" />
+              Calendar
+            </ToggleButton>
+          </ToggleButtonGroup>
+
+          <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", md: "1fr" }, gap: 2 }}>
+            <TextField
+              select
+              size="small"
+              label="Transaction type"
+              value={types}
+              onChange={(event) => {
+                const value = event.target.value as unknown as string[] | string;
+                const next = (typeof value === "string" ? value.split(",") : value) as TransactionType[];
+                // Keep only the chosen categories that still fit one of the types.
+                const keep = categoryIds.filter((id) => {
+                  const kind = categoryMap.get(id)?.type;
+                  return next.length === 0 || (kind !== undefined && next.includes(kind));
+                });
+                update({ type: next, category: keep.map(String) });
+              }}
+              slotProps={{
+                inputLabel: { shrink: true },
+                select: {
+                  multiple: true,
+                  displayEmpty: true,
+                  renderValue: (selected) => {
+                    const chosen = selected as unknown as TransactionType[];
+                    return chosen.length === 0 || chosen.length === TRANSACTION_TYPES.length
+                      ? "All types"
+                      : TRANSACTION_TYPES.filter((option) => chosen.includes(option.value))
+                          .map((option) => option.name)
+                          .join(", ");
+                  },
+                },
+              }}
+            >
+              {TRANSACTION_TYPES.map((option) => (
+                <MenuItem key={option.value} value={option.value} dense>
+                  <Checkbox size="small" checked={types.includes(option.value)} sx={{ p: 0.5, mr: 1 }} />
+                  {option.name}
+                </MenuItem>
+              ))}
+            </TextField>
+            {view === "list" ? (
+              <TextField select size="small" label="Transactions per page" value={pageSize} onChange={(event) => update({ per: Number(event.target.value) === DEFAULT_PAGE_SIZE ? undefined : String(event.target.value) })}>
+                {PAGE_SIZES.map((size) => (
+                  <MenuItem key={size} value={size}>
+                    {size}
+                  </MenuItem>
+                ))}
+              </TextField>
             ) : null}
           </Box>
-          <Box sx={{ flex: 1 }} />
-          <TextField
-            size="small"
-            placeholder="Search descriptions"
-            value={search}
-            onChange={(event) => setSearch(event.target.value)}
-            sx={{ width: { xs: "100%", sm: 220 } }}
-            slotProps={{
-              htmlInput: { "aria-label": "Search descriptions", maxLength: 100 },
-              input: {
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <MdiIcon path={mdiMagnify} fontSize="small" />
-                  </InputAdornment>
-                ),
-              },
-            }}
-          />
-        </Box>
-        <Box sx={{ display: "grid", gridTemplateColumns: { xs: "repeat(2, minmax(0, 1fr))", sm: "repeat(3, minmax(0, 1fr))" }, gap: 1.5, px: { xs: 2, sm: 3 }, pb: 2 }}>
-          <TextField select size="small" label="Type" value={type ?? ""} onChange={(event) => setParam("type", event.target.value || undefined)}>
-            <MenuItem value="">All Types</MenuItem>
-            {TRANSACTION_TYPES.map((option) => (
-              <MenuItem key={option.value} value={option.value}>
-                {option.name}
-              </MenuItem>
-            ))}
-          </TextField>
-          <TextField select size="small" label="Account" value={accountId ?? ""} onChange={(event) => setParam("account", event.target.value ? String(event.target.value) : undefined)}>
-            <MenuItem value="">All Accounts</MenuItem>
-            {ACCOUNT_CATEGORIES.flatMap((info) => {
-              const inCategory = (accounts.data ?? []).filter((account) => account.category === info.value);
-              if (inCategory.length === 0) return [];
-              return [
-                <ListSubheader key={`group-${info.value}`} sx={{ lineHeight: "32px" }}>
-                  {info.name}
-                </ListSubheader>,
-                ...inCategory.map((account) => (
-                  <MenuItem key={account.id} value={account.id} sx={{ pl: 3 }}>
-                    {account.name}
-                  </MenuItem>
-                )),
-              ];
-            })}
-          </TextField>
-          <TextField
-            select
-            size="small"
-            label="Category"
-            value={categoryId ?? ""}
-            onChange={(event) => setParam("category", event.target.value ? String(event.target.value) : undefined)}
-            sx={{ gridColumn: { xs: "1 / -1", sm: "auto" } }}
-            slotProps={{ select: { MenuProps: { slotProps: { paper: { sx: { maxHeight: 420 } } } } } }}
-          >
-            <MenuItem value="">All Categories</MenuItem>
-            {(categories.data ?? [])
-              .filter((top) => !type || top.type === type)
-              .flatMap((top) => [
-                <MenuItem key={top.id} value={top.id} sx={{ fontWeight: 600 }}>
-                  <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
-                    <CategoryIcon icon={top.icon} color={top.color} size={18} />
-                    {top.name}
-                  </Box>
-                </MenuItem>,
-                ...top.sub_categories.map((sub) => (
-                  <MenuItem key={sub.id} value={sub.id} sx={{ pl: 4 }}>
-                    <Box component="span" sx={{ display: "inline-flex", alignItems: "center", gap: 1 }}>
-                      <CategoryIcon icon={sub.icon} color={sub.color} size={18} />
-                      {sub.name}
-                    </Box>
-                  </MenuItem>
-                )),
-              ])}
-          </TextField>
-        </Box>
 
-        <Divider />
-        {/* The month's totals. */}
-        <Box sx={{ display: "grid", gridTemplateColumns: "repeat(3, minmax(0, 1fr))", gap: 1.5, px: { xs: 2, sm: 3 }, py: 2 }}>
-          <Figure label="Income" value={data ? money(data.total_income, data.currency) : <Skeleton width={90} />} color="var(--hk-income-color)" />
-          <Figure label="Expense" value={data ? money(data.total_expense, data.currency) : <Skeleton width={90} />} color="var(--hk-expense-color)" />
-          <Figure label="Net" value={data ? money(data.total_income - data.total_expense, data.currency) : <Skeleton width={90} />} />
-        </Box>
-        <Divider />
-        <Box sx={{ height: 2 }}>{transactions.isFetching && data ? <LinearProgress sx={{ height: 2 }} /> : null}</Box>
+          <Divider />
 
-        {transactions.isPending ? (
-          <Box sx={{ px: 3, py: 2, display: "flex", flexDirection: "column", gap: 1.5 }}>
-            {[0, 1, 2, 3].map((index) => (
-              <Skeleton key={index} variant="rounded" height={48} />
-            ))}
-          </Box>
-        ) : transactions.isError ? (
-          <Box sx={{ p: 3 }}>
-            <Alert
-              severity="error"
-              action={
-                <Button color="inherit" size="small" onClick={() => void transactions.refetch()}>
-                  Retry
-                </Button>
-              }
-            >
-              Could not load your transactions. {errorMessage(transactions.error)}
-            </Alert>
-          </Box>
-        ) : groups.length === 0 ? (
-          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 1.5, py: 8, px: 2, color: "text.secondary" }}>
-            <MdiIcon path={mdiReceiptTextOutline} sx={{ fontSize: 44 }} />
-            <Typography>{filtered ? "No transactions match these filters this month." : `No transactions in ${MONTH_FORMAT.format(monthStart)}.`}</Typography>
-            {filtered ? (
-              <Button
-                variant="text"
-                startIcon={<MdiIcon path={mdiClose} />}
-                onClick={() => {
-                  setSearch("");
-                  setParams(month === monthKey(today()) ? {} : { month }, { replace: true });
-                }}
-              >
-                Clear Filters
-              </Button>
-            ) : (
-              <Button startIcon={<MdiIcon path={mdiPlus} />} disabled={!ready} onClick={() => setDialog({ mode: "add", accountId })}>
-                Add Transaction
-              </Button>
-            )}
-          </Box>
-        ) : (
-          groups.map((group) => {
-            const totals = dayTotals(group.items);
-            return (
-              <Box key={group.day} component="section">
-                <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: { xs: 2, sm: 3 }, py: 1, bgcolor: "action.hover" }}>
-                  <Typography variant="body2" component="h3" sx={{ fontWeight: 600, flex: 1 }}>
-                    {DAY_FORMAT.format(parseIsoDate(group.day))}
-                  </Typography>
-                  {totals.income > 0 ? (
-                    <Typography variant="body2" sx={{ color: "var(--hk-income-color)" }}>
-                      +{money(totals.income, currency)}
-                    </Typography>
-                  ) : null}
-                  {totals.expense > 0 ? (
-                    <Typography variant="body2" sx={{ color: "var(--hk-expense-color)" }}>
-                      −{money(totals.expense, currency)}
-                    </Typography>
-                  ) : null}
+          {/* A column of ranges on wide screens; a row that scrolls sideways on narrow ones. */}
+          <Box component="nav" aria-label="Date ranges">
+            {view === "list" ? (
+              <>
+                <SidebarLabel>Date range</SidebarLabel>
+                <Box sx={{ display: "flex", flexDirection: { xs: "row", md: "column" }, gap: 0.25, overflowX: { xs: "auto", md: "visible" }, mb: 2 }}>
+                  {DATE_RANGE_PRESETS.map((option) => (
+                    <NavItem key={option.value} selected={preset === option.value} onClick={() => setRange(presetSpan(option.value, firstDayOfWeek))}>
+                      {option.name}
+                    </NavItem>
+                  ))}
+                  <NavItem selected={!preset} onClick={() => setCustomOpen(true)}>
+                    Custom…
+                  </NavItem>
                 </Box>
-                {group.items.map((item) => (
-                  <TransactionRow
-                    key={item.id}
-                    transaction={item}
-                    accounts={accountsById}
-                    categories={categoryMap}
-                    onOpen={() => setDialog({ mode: "edit", transaction: item })}
-                  />
-                ))}
+              </>
+            ) : null}
+            <SidebarLabel>Recent months</SidebarLabel>
+            <Box sx={{ display: "flex", flexDirection: { xs: "row", md: "column" }, gap: 0.25, overflowX: { xs: "auto", md: "visible" } }}>
+              {recentMonths(view === "calendar" ? 12 : 6).map((month) => (
+                <NavItem key={month.start} selected={range.start === month.start && range.end === month.end} onClick={() => setRange(month)}>
+                  {month.name}
+                </NavItem>
+              ))}
+            </Box>
+          </Box>
+        </Paper>
+
+        <Paper variant="outlined" sx={{ borderRadius: 3, overflow: "hidden", minHeight: 480 }}>
+          {/* Title, actions and search. */}
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1.5, px: { xs: 2, sm: 3 }, pt: 2.5, pb: 1.5 }}>
+            <Typography variant="h6" component="h2">
+              {view === "calendar" ? "Calendar" : "Transaction List"}
+            </Typography>
+            <Button variant="outlined" color="inherit" size="small" startIcon={<MdiIcon path={mdiPlus} />} disabled={!ready} onClick={() => setDialog({ mode: "add", accountId: onlyAccount })}>
+              Add
+            </Button>
+            <Button
+              variant="outlined"
+              color="inherit"
+              size="small"
+              startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : <MdiIcon path={mdiDownload} />}
+              disabled={exporting || !data || data.total_count === 0}
+              onClick={(event) => setExportAnchor(event.currentTarget)}
+            >
+              Export
+            </Button>
+            <Menu anchorEl={exportAnchor} open={exportAnchor !== null} onClose={() => setExportAnchor(null)}>
+              <MenuItem onClick={() => void runExport("csv")}>Export to CSV (comma-separated) file</MenuItem>
+              <MenuItem onClick={() => void runExport("tsv")}>Export to TSV (tab-separated) file</MenuItem>
+            </Menu>
+            <Tooltip title="Refresh">
+              <span>
+                <IconButton aria-label="Refresh" disabled={transactions.isFetching} onClick={() => void transactions.refetch()}>
+                  {transactions.isFetching ? <CircularProgress size={20} color="inherit" /> : <MdiIcon path={mdiRefresh} />}
+                </IconButton>
+              </span>
+            </Tooltip>
+            <Box sx={{ flex: 1 }} />
+            <TextField
+              size="small"
+              placeholder="Search description"
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              sx={{ width: { xs: "100%", sm: 260 } }}
+              slotProps={{
+                htmlInput: { "aria-label": "Search description", maxLength: 100 },
+                input: {
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <MdiIcon path={mdiMagnify} fontSize="small" />
+                    </InputAdornment>
+                  ),
+                },
+              }}
+            />
+          </Box>
+
+          {/* The date range with its arrows, and the period's totals. */}
+          <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 2, px: { xs: 2, sm: 3 }, pb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+              <Tooltip title="Previous period">
+                <IconButton size="small" aria-label="Previous period" onClick={() => setRange(shiftSpan(range, -1))}>
+                  <MdiIcon path={mdiChevronLeft} />
+                </IconButton>
+              </Tooltip>
+              <Button variant="text" color="inherit" startIcon={<MdiIcon path={mdiCalendarRange} />} onClick={() => setCustomOpen(true)} sx={{ fontWeight: 600, fontSize: "1rem" }}>
+                {spanLabel(range)}
+              </Button>
+              <Tooltip title="Next period">
+                <IconButton size="small" aria-label="Next period" onClick={() => setRange(shiftSpan(range, 1))}>
+                  <MdiIcon path={mdiChevronRight} />
+                </IconButton>
+              </Tooltip>
+              {range.start !== thisMonth.start || range.end !== thisMonth.end ? (
+                <Button size="small" variant="text" onClick={() => update({ from: undefined, to: undefined })}>
+                  This Month
+                </Button>
+              ) : null}
+            </Box>
+            <Box sx={{ flex: 1 }} />
+            <Box sx={{ display: "flex", gap: 3 }}>
+              <Figure label="Total income" value={data ? money(data.total_income, data.currency) : <Skeleton width={80} />} color="var(--hk-income-color)" />
+              <Figure label="Total expense" value={data ? money(data.total_expense, data.currency) : <Skeleton width={80} />} color="var(--hk-expense-color)" />
+              <Figure label="Net" value={data ? money(data.total_income - data.total_expense, data.currency) : <Skeleton width={80} />} />
+            </Box>
+          </Box>
+
+          {chips.length > 0 ? (
+            <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 1, px: { xs: 2, sm: 3 }, pb: 2 }}>
+              {chips.map((chip) => (
+                <Chip key={chip.key} size="small" label={chip.label} onDelete={chip.onDelete} />
+              ))}
+              <Button size="small" variant="text" startIcon={<MdiIcon path={mdiClose} />} onClick={clearFilters}>
+                Clear all
+              </Button>
+            </Box>
+          ) : null}
+
+          <Divider />
+          <Box sx={{ height: 2 }}>{transactions.isFetching && data ? <LinearProgress sx={{ height: 2 }} /> : null}</Box>
+
+          {transactions.isError ? (
+            <Box sx={{ p: 3 }}>
+              <Alert
+                severity="error"
+                action={
+                  <Button color="inherit" size="small" onClick={() => void transactions.refetch()}>
+                    Retry
+                  </Button>
+                }
+              >
+                Could not load your transactions. {errorMessage(transactions.error)}
+              </Alert>
+            </Box>
+          ) : view === "calendar" ? (
+            <Box sx={{ p: { xs: 2, sm: 3 } }}>
+              {data ? (
+                <TransactionCalendar
+                  month={calendarMonth}
+                  items={data.items}
+                  accounts={accountsById}
+                  currency={currency}
+                  firstDayOfWeek={firstDayOfWeek}
+                  money={money}
+                  onDay={(day) => update({ view: undefined, from: day, to: day })}
+                />
+              ) : (
+                <Skeleton variant="rounded" height={520} />
+              )}
+            </Box>
+          ) : (
+            <>
+              <Box sx={{ overflowX: "auto" }}>
+                <Table size="small" sx={{ minWidth: 760, "& th": { fontWeight: 600, whiteSpace: "nowrap", py: 1.25 }, "& td, & th": { px: { xs: 2, sm: 3 } } }}>
+                  <TableHead>
+                    <TableRow>
+                      <TableCell sx={{ width: 90 }}>
+                        <HeaderFilter label="Time" active={Boolean(preset !== "this_month")}>
+                          {(close) => [
+                            ...DATE_RANGE_PRESETS.map((option) => (
+                              <FilterItem
+                                key={option.value}
+                                selected={preset === option.value}
+                                onClick={() => {
+                                  setRange(presetSpan(option.value, firstDayOfWeek));
+                                  close();
+                                }}
+                              >
+                                {option.name}
+                              </FilterItem>
+                            )),
+                            <Divider key="divider" />,
+                            <FilterItem
+                              key="custom"
+                              selected={!preset}
+                              onClick={() => {
+                                setCustomOpen(true);
+                                close();
+                              }}
+                            >
+                              Custom date…
+                            </FilterItem>,
+                          ]}
+                        </HeaderFilter>
+                      </TableCell>
+                      <TableCell sx={{ width: "24%" }}>
+                        <HeaderFilter label="Category" active={categoryIds.length > 0}>
+                          {(close) => [
+                            <AllItem
+                              key="all"
+                              selected={categoryIds.length === 0}
+                              onClick={() => {
+                                update({ category: undefined });
+                                close();
+                              }}
+                            />,
+                            <MultipleItem
+                              key="multiple"
+                              label="Multiple categories…"
+                              selected={categoryIds.length > 1}
+                              onClick={() => {
+                                setMultiOpen("category");
+                                close();
+                              }}
+                            />,
+                            ...categoryGroups.flatMap((group) => [
+                              <ListSubheader key={`group-${group.label}`} sx={{ lineHeight: "32px" }}>
+                                {group.label}
+                              </ListSubheader>,
+                              ...group.items.map((item) => (
+                                <FilterItem
+                                  key={item.id}
+                                  indent={item.indent}
+                                  icon={item.icon}
+                                  selected={categoryIds.length === 1 && categoryIds[0] === item.id}
+                                  onClick={() => {
+                                    update({ category: String(item.id) });
+                                    close();
+                                  }}
+                                >
+                                  {item.name}
+                                </FilterItem>
+                              )),
+                            ]),
+                          ]}
+                        </HeaderFilter>
+                      </TableCell>
+                      <TableCell sx={{ width: "16%" }}>
+                        <HeaderFilter label="Amount" active={Boolean(amount)}>
+                          {(close) => <AmountFilterMenu value={amount} currency={currency} onChange={(value) => update({ amount: value })} close={close} />}
+                        </HeaderFilter>
+                      </TableCell>
+                      <TableCell sx={{ width: "22%" }}>
+                        <HeaderFilter label="Account" active={accountIds.length > 0}>
+                          {(close) => [
+                            <AllItem
+                              key="all"
+                              selected={accountIds.length === 0}
+                              onClick={() => {
+                                update({ account: undefined });
+                                close();
+                              }}
+                            />,
+                            <MultipleItem
+                              key="multiple"
+                              label="Multiple accounts…"
+                              selected={accountIds.length > 1}
+                              onClick={() => {
+                                setMultiOpen("account");
+                                close();
+                              }}
+                            />,
+                            ...accountGroups.flatMap((group) => [
+                              <ListSubheader key={`group-${group.label}`} sx={{ lineHeight: "32px" }}>
+                                {group.label}
+                              </ListSubheader>,
+                              ...group.items.map((item) => (
+                                <FilterItem
+                                  key={item.id}
+                                  icon={item.icon}
+                                  selected={accountIds.length === 1 && accountIds[0] === item.id}
+                                  onClick={() => {
+                                    update({ account: String(item.id) });
+                                    close();
+                                  }}
+                                >
+                                  {item.name}
+                                </FilterItem>
+                              )),
+                            ]),
+                          ]}
+                        </HeaderFilter>
+                      </TableCell>
+                      <TableCell>Description</TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {transactions.isPending
+                      ? [0, 1, 2, 3, 4].map((index) => (
+                          <TableRow key={index}>
+                            <TableCell colSpan={5}>
+                              <Skeleton height={32} />
+                            </TableCell>
+                          </TableRow>
+                        ))
+                      : rows}
+                  </TableBody>
+                </Table>
               </Box>
-            );
-          })
-        )}
-      </Paper>
+
+              {data && data.total_count === 0 ? (
+                <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center", gap: 1.5, py: 8, px: 2, color: "text.secondary" }}>
+                  <MdiIcon path={mdiReceiptTextOutline} sx={{ fontSize: 44 }} />
+                  <Typography>{filtered ? "No transactions match these filters in this period." : `No transactions in ${spanLabel(range)}.`}</Typography>
+                  {filtered ? (
+                    <Button variant="text" startIcon={<MdiIcon path={mdiClose} />} onClick={clearFilters}>
+                      Clear Filters
+                    </Button>
+                  ) : (
+                    <Button startIcon={<MdiIcon path={mdiPlus} />} disabled={!ready} onClick={() => setDialog({ mode: "add", accountId: onlyAccount })}>
+                      Add Transaction
+                    </Button>
+                  )}
+                </Box>
+              ) : null}
+
+              {data && data.total_count > 0 ? (
+                <Box sx={{ display: "flex", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 1.5, px: { xs: 2, sm: 3 }, py: 2 }}>
+                  <Typography variant="body2" color="text.secondary">
+                    {(page - 1) * pageSize + 1}–{Math.min(page * pageSize, data.total_count)} of {data.total_count}
+                  </Typography>
+                  {pageCount > 1 ? <Pagination count={pageCount} page={Math.min(page, pageCount)} onChange={(_, next) => update({ page: next > 1 ? String(next) : undefined })} shape="rounded" /> : null}
+                </Box>
+              ) : null}
+            </>
+          )}
+        </Paper>
+      </Box>
 
       {data && accountsById.size > 0 && data.items.some((item) => accountsById.get(item.account_id)?.currency !== data.currency) ? (
         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1.5 }}>
@@ -446,6 +896,37 @@ export function TransactionsPage() {
         </Typography>
       ) : null}
 
+      <CustomRangeDialog
+        open={customOpen}
+        initial={range}
+        onApply={(next) => {
+          setCustomOpen(false);
+          update({ view: undefined, from: next.start, to: next.end });
+        }}
+        onClose={() => setCustomOpen(false)}
+      />
+      <MultiSelectDialog
+        open={multiOpen === "account"}
+        title="Filter accounts"
+        groups={accountGroups}
+        selected={accountIds}
+        onApply={(chosen) => {
+          setMultiOpen(null);
+          update({ account: chosen.map(String) });
+        }}
+        onClose={() => setMultiOpen(null)}
+      />
+      <MultiSelectDialog
+        open={multiOpen === "category"}
+        title="Filter categories"
+        groups={categoryGroups}
+        selected={categoryIds}
+        onApply={(chosen) => {
+          setMultiOpen(null);
+          update({ category: chosen.map(String) });
+        }}
+        onClose={() => setMultiOpen(null)}
+      />
       {dialog ? <TransactionDialog target={dialog} onClose={() => setDialog(null)} onSaved={setMessage} /> : null}
       <Snackbar open={message !== null} message={message} autoHideDuration={3000} onClose={() => setMessage(null)} />
     </>

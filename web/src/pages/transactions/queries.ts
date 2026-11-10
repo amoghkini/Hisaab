@@ -1,7 +1,7 @@
 import { keepPreviousData, useQuery, type QueryClient } from "@tanstack/react-query";
 
 import { fetchCategories, type Category } from "@/api/categories";
-import { fetchTransactions, type TransactionFilters } from "@/api/transactions";
+import { fetchDailyTotals, fetchTransactions, type TransactionFilters } from "@/api/transactions";
 import { ACCOUNTS_KEY } from "@/pages/accounts/queries";
 import { OVERVIEW_KEY } from "@/pages/overview/OverviewContext";
 
@@ -11,6 +11,12 @@ export const CATEGORIES_KEY = "categories";
 export function useTransactions(filters: TransactionFilters) {
   // Keep the last month on screen while the next one loads, so the list does not flash empty.
   return useQuery({ queryKey: [TRANSACTIONS_KEY, filters], queryFn: () => fetchTransactions(filters), placeholderData: keepPreviousData });
+}
+
+/** Each day's totals over every match, so a day split across pages still shows its whole total. */
+export function useDailyTotals(filters: TransactionFilters, enabled: boolean) {
+  const matching = { ...filters, limit: undefined, offset: undefined };
+  return useQuery({ queryKey: [TRANSACTIONS_KEY, "daily", matching], queryFn: () => fetchDailyTotals(matching), placeholderData: keepPreviousData, enabled });
 }
 
 export function useCategories() {
