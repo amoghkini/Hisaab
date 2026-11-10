@@ -1,5 +1,8 @@
 import {
   mdiAccountCircleOutline,
+  mdiBriefcaseOutline,
+  mdiCalculatorVariantOutline,
+  mdiChartLine,
   mdiChevronDown,
   mdiCogOutline,
   mdiEyeOffOutline,
@@ -17,7 +20,6 @@ import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
-import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import { useColorScheme } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
@@ -30,7 +32,10 @@ import { signOut, updateMe, type User } from "@/api/auth";
 import { usePrivacyMode } from "@/appearance/PrivacyMode";
 import { useMe, useSetMe } from "@/auth/session";
 import { Logo } from "@/components/Logo";
+import { HoverMenu } from "@/components/HoverMenu";
+import { MarketTicker } from "@/components/MarketTicker";
 import { MdiIcon } from "@/components/MdiIcon";
+import { NotAvailableDialog } from "@/components/NotAvailableDialog";
 
 const NAV = [
   { to: "/", label: "Overview", icon: mdiViewDashboardOutline, end: true },
@@ -38,11 +43,43 @@ const NAV = [
   { to: "/accounts", label: "Accounts", icon: mdiWalletOutline, end: false },
 ];
 
+/**
+ * The planned sections (docs/content/architecture.md). Not built yet: each item says so.
+ * When a page is built, give its item a `to` and route it like the links above.
+ */
+const PLANNED_NAV = [
+  {
+    label: "Investments",
+    icon: mdiChartLine,
+    items: ["Portfolio", "EPF", "PPF and NPS", "Fixed and recurring deposits", "Mutual funds and stocks", "Sync from EPFO"],
+  },
+  {
+    label: "Salary",
+    icon: mdiBriefcaseOutline,
+    items: ["Payslips", "Add a payslip", "Employers and salary structure"],
+  },
+  {
+    label: "Taxes",
+    icon: mdiCalculatorVariantOutline,
+    items: ["Tax summary", "TDS and taxes paid", "Deductions (80C, 80D and others)", "Old vs new regime"],
+  },
+];
+
+const navButtonSx = {
+  color: "text.secondary",
+  flexShrink: 0,
+  // Icons only on phones, so the items fit beside the logo and the buttons on the right.
+  minWidth: { xs: 34, sm: 64 },
+  px: { xs: 0.5, sm: 1 },
+  "& .MuiButton-startIcon": { mx: { xs: 0 }, mr: { sm: 1 } },
+};
+
 /** The frame of the signed-in pages: a top bar with the navigation, and the page below it. */
 export function AppLayout() {
-  // The dashboard's 12-column grid uses the full width of the screen; the accounts page has two columns.
+  // The dashboard, accounts and transactions pages use the full width of the screen.
   const path = useLocation().pathname;
-  const maxWidth = path === "/" ? "none" : path.startsWith("/accounts") ? 1280 : 1080;
+  const fullWidth = path === "/" || path.startsWith("/accounts") || path.startsWith("/transactions");
+  const maxWidth = fullWidth ? "none" : 1080;
 
   return (
     <Box sx={{ minHeight: "100dvh" }}>
@@ -69,7 +106,10 @@ export function AppLayout() {
           </Typography>
         </Box>
 
-        <Box component="nav" sx={{ display: "flex", gap: 0.5, flex: 1, minWidth: 0 }}>
+        <Box
+          component="nav"
+          sx={{ display: "flex", gap: { xs: 0, sm: 0.5 }, flex: 1, minWidth: 0, overflowX: "auto", scrollbarWidth: "none" }}
+        >
           {NAV.map((item) => (
             <Button
               key={item.to}
@@ -81,12 +121,8 @@ export function AppLayout() {
               startIcon={<MdiIcon path={item.icon} />}
               aria-label={item.label}
               sx={{
-                color: "text.secondary",
+                ...navButtonSx,
                 "&.active": { color: "primary.main", bgcolor: "rgb(var(--mui-palette-primary-mainChannel) / 0.08)" },
-                // Icons only on phones, so the items fit beside the logo and the buttons on the right.
-                minWidth: { xs: 36, sm: 64 },
-                px: { xs: 0.75, sm: 1 },
-                "& .MuiButton-startIcon": { mx: { xs: 0 }, mr: { sm: 1 } },
               }}
             >
               <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
@@ -94,9 +130,13 @@ export function AppLayout() {
               </Box>
             </Button>
           ))}
+          {PLANNED_NAV.map((section) => (
+            <PlannedNavMenu key={section.label} {...section} />
+          ))}
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+          <MarketTicker />
           <ThemeModeSwitch />
           <PrivacyModeSwitch />
           <UserMenu />
@@ -107,6 +147,49 @@ export function AppLayout() {
         <Outlet />
       </Box>
     </Box>
+  );
+}
+
+/** A navigation item with a dropdown of pages that are not built yet. */
+function PlannedNavMenu({ label, icon, items }: (typeof PLANNED_NAV)[number]) {
+  const [notAvailable, setNotAvailable] = useState<string | null>(null);
+
+  return (
+    <>
+      <HoverMenu
+        trigger={(open) => (
+          <Button
+            aria-haspopup="menu"
+            aria-expanded={open}
+            variant="text"
+            color="inherit"
+            startIcon={<MdiIcon path={icon} />}
+            endIcon={<MdiIcon path={mdiChevronDown} />}
+            aria-label={label}
+            sx={{ ...navButtonSx, "& .MuiButton-endIcon": { display: { xs: "none", sm: "inherit" }, ml: 0.25 } }}
+          >
+            <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+              {label}
+            </Box>
+          </Button>
+        )}
+      >
+        {(close) =>
+          items.map((item) => (
+            <MenuItem
+              key={item}
+              onClick={() => {
+                close();
+                setNotAvailable(`${label}: ${item}`);
+              }}
+            >
+              {item}
+            </MenuItem>
+          ))
+        }
+      </HoverMenu>
+      <NotAvailableDialog feature={notAvailable} onClose={() => setNotAvailable(null)} />
+    </>
   );
 }
 
@@ -162,48 +245,44 @@ function UserMenu() {
   const me = useMe();
   const setMe = useSetMe();
   const navigate = useNavigate();
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null);
   // Forget the user here even if the call fails, so the button always logs out.
   const logout = useMutation({ mutationFn: signOut, onSettled: () => setMe(null) });
   const name = me.data?.name ?? "";
   const firstName = name.trim().split(/\s+/)[0] ?? "";
 
   return (
-    <>
-      <Button
-        variant="text"
-        color="inherit"
-        endIcon={<MdiIcon path={mdiChevronDown} />}
-        onClick={(event) => setAnchor(event.currentTarget)}
-        aria-haspopup="menu"
-        aria-expanded={anchor !== null}
-        aria-label={`Account menu for ${firstName}`}
-        sx={{ ml: { xs: 0, sm: 0.5 }, maxWidth: 160, minWidth: { xs: 40, sm: 64 }, px: { xs: 0.5, sm: 1 }, "& .MuiButton-endIcon": { ml: { xs: 0, sm: 1 } } }}
-      >
-        {/* On phones, an icon instead of the name, so the navigation fits. */}
-        <MdiIcon path={mdiAccountCircleOutline} sx={{ display: { xs: "block", sm: "none" } }} />
-        <Box component="span" sx={{ display: { xs: "none", sm: "block" }, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-          {firstName}
-        </Box>
-      </Button>
-      <Menu
-        anchorEl={anchor}
-        open={anchor !== null}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
-        slotProps={{ paper: { sx: { minWidth: 220, mt: 0.5 } } }}
-      >
-        <Box sx={{ px: 2, py: 1 }}>
+    <HoverMenu
+      placement="bottom-end"
+      trigger={(open) => (
+        <Button
+          aria-haspopup="menu"
+          aria-expanded={open}
+          variant="text"
+          color="inherit"
+          endIcon={<MdiIcon path={mdiChevronDown} />}
+          aria-label={`Account menu for ${firstName}`}
+          sx={{ ml: { xs: 0, sm: 0.5 }, maxWidth: 160, minWidth: { xs: 40, sm: 64 }, px: { xs: 0.5, sm: 1 }, "& .MuiButton-endIcon": { ml: { xs: 0, sm: 1 } } }}
+        >
+          {/* On phones, an icon instead of the name, so the navigation fits. */}
+          <MdiIcon path={mdiAccountCircleOutline} sx={{ display: { xs: "block", sm: "none" } }} />
+          <Box component="span" sx={{ display: { xs: "none", sm: "block" }, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+            {firstName}
+          </Box>
+        </Button>
+      )}
+    >
+      {(close) => [
+        <Box key="who" sx={{ px: 2, py: 1 }}>
           <Typography sx={{ fontWeight: 600 }}>{name}</Typography>
           <Typography variant="body2" color="text.secondary">
             {me.data?.email}
           </Typography>
-        </Box>
-        <Divider />
+        </Box>,
+        <Divider key="divider" />,
         <MenuItem
+          key="settings"
           onClick={() => {
-            setAnchor(null);
+            close();
             void navigate("/profile");
           }}
         >
@@ -211,10 +290,11 @@ function UserMenu() {
             <MdiIcon path={mdiCogOutline} fontSize="small" />
           </ListItemIcon>
           Settings
-        </MenuItem>
+        </MenuItem>,
         <MenuItem
+          key="categories"
           onClick={() => {
-            setAnchor(null);
+            close();
             void navigate("/categories");
           }}
         >
@@ -222,14 +302,14 @@ function UserMenu() {
             <MdiIcon path={mdiShapeOutline} fontSize="small" />
           </ListItemIcon>
           Categories
-        </MenuItem>
-        <MenuItem disabled={logout.isPending} onClick={() => logout.mutate()}>
+        </MenuItem>,
+        <MenuItem key="logout" disabled={logout.isPending} onClick={() => logout.mutate()}>
           <ListItemIcon>
             <MdiIcon path={mdiLogout} fontSize="small" />
           </ListItemIcon>
           Log Out
-        </MenuItem>
-      </Menu>
-    </>
+        </MenuItem>,
+      ]}
+    </HoverMenu>
   );
 }
