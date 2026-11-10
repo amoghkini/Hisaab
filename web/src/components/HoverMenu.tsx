@@ -53,6 +53,11 @@ export function HoverMenu({
         sx={{ display: "inline-flex", flexShrink: 0 }}
         onClick={() => {
           cancelClose();
+          // A click on a menu the mouse just opened keeps it open; otherwise a click toggles it.
+          if (open && !focusFirst) {
+            setFocusFirst(true);
+            return;
+          }
           setFocusFirst(true);
           setOpen((was) => !was);
         }}

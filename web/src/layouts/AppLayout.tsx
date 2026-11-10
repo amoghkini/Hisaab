@@ -2,15 +2,16 @@ import {
   mdiAccountCircleOutline,
   mdiBriefcaseOutline,
   mdiCalculatorVariantOutline,
-  mdiChartLine,
+  mdiCalendarCheckOutline,
   mdiChevronDown,
   mdiCogOutline,
   mdiEyeOffOutline,
   mdiEyeOutline,
+  mdiFinance,
   mdiListBoxOutline,
   mdiLogout,
+  mdiPiggyBankOutline,
   mdiShapeOutline,
-  mdiViewDashboardOutline,
   mdiWalletOutline,
   mdiWeatherNight,
   mdiWeatherSunny,
@@ -20,6 +21,7 @@ import Button from "@mui/material/Button";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
+import ListSubheader from "@mui/material/ListSubheader";
 import MenuItem from "@mui/material/MenuItem";
 import { useColorScheme } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
@@ -37,33 +39,81 @@ import { MarketTicker } from "@/components/MarketTicker";
 import { MdiIcon } from "@/components/MdiIcon";
 import { NotAvailableDialog } from "@/components/NotAvailableDialog";
 
-const NAV = [
-  { to: "/", label: "Overview", icon: mdiViewDashboardOutline, end: true },
-  { to: "/transactions", label: "Transactions", icon: mdiListBoxOutline, end: false },
-  { to: "/accounts", label: "Accounts", icon: mdiWalletOutline, end: false },
-];
+/** One entry in a dropdown: a built page (`to`), or a planned one that says "not available yet". */
+interface NavMenuEntry {
+  label: string;
+  to?: string;
+  /** A heading the entry sits under, within the dropdown. */
+  group?: string;
+}
+
+interface NavLinkItem {
+  kind: "link";
+  label: string;
+  icon: string;
+  to: string;
+}
+
+interface NavMenuItem {
+  kind: "menu";
+  label: string;
+  icon: string;
+  /** The button is highlighted while the address starts with one of these. */
+  activePaths?: string[];
+  entries: NavMenuEntry[];
+}
 
 /**
- * The planned sections (docs/content/architecture.md). Not built yet: each item says so.
- * When a page is built, give its item a `to` and route it like the links above.
+ * The top bar, in order. The logo goes to the dashboard, so it has no item of its own.
+ * Entries without a `to` are planned (docs/content/architecture.md); give one a `to` and a route when it is built.
  */
-const PLANNED_NAV = [
+const NAV: (NavLinkItem | NavMenuItem)[] = [
+  { kind: "link", label: "Transactions", icon: mdiListBoxOutline, to: "/transactions" },
   {
-    label: "Investments",
-    icon: mdiChartLine,
-    items: ["Portfolio", "EPF", "PPF and NPS", "Fixed and recurring deposits", "Mutual funds and stocks", "Sync from EPFO"],
+    kind: "menu",
+    label: "Accounts",
+    icon: mdiWalletOutline,
+    activePaths: ["/accounts"],
+    entries: [{ label: "All accounts", to: "/accounts" }, { label: "Credit cards" }, { label: "Debit cards" }, { label: "Loans" }],
   },
   {
+    kind: "menu",
+    label: "Planning",
+    icon: mdiCalendarCheckOutline,
+    entries: [{ label: "Budgets" }, { label: "Subscriptions" }, { label: "Upcoming bills" }],
+  },
+  {
+    kind: "menu",
+    label: "Wealth",
+    icon: mdiPiggyBankOutline,
+    entries: [
+      { label: "Net worth" },
+      { label: "Portfolio", group: "Investments" },
+      { label: "EPF", group: "Investments" },
+      { label: "PPF and NPS", group: "Investments" },
+      { label: "Fixed and recurring deposits", group: "Investments" },
+      { label: "Mutual funds and stocks", group: "Investments" },
+      { label: "Sync from EPFO", group: "Investments" },
+      { label: "Property and vehicles", group: "Assets and protection" },
+      { label: "Insurance", group: "Assets and protection" },
+    ],
+  },
+  {
+    kind: "menu",
     label: "Salary",
     icon: mdiBriefcaseOutline,
-    items: ["Payslips", "Add a payslip", "Employers and salary structure"],
+    entries: [{ label: "Payslips" }, { label: "Add a payslip" }, { label: "Employers and salary structure" }],
   },
   {
+    kind: "menu",
     label: "Taxes",
     icon: mdiCalculatorVariantOutline,
-    items: ["Tax summary", "TDS and taxes paid", "Deductions (80C, 80D and others)", "Old vs new regime"],
+    entries: [{ label: "Tax summary" }, { label: "TDS and taxes paid" }, { label: "Deductions (80C, 80D and others)" }, { label: "Old vs new regime" }],
   },
+  { kind: "link", label: "Markets", icon: mdiFinance, to: "/markets" },
 ];
+
+const activeSx = { color: "primary.main", bgcolor: "rgb(var(--mui-palette-primary-mainChannel) / 0.08)" };
 
 const navButtonSx = {
   color: "text.secondary",
@@ -76,9 +126,9 @@ const navButtonSx = {
 
 /** The frame of the signed-in pages: a top bar with the navigation, and the page below it. */
 export function AppLayout() {
-  // The dashboard, accounts and transactions pages use the full width of the screen.
+  // The dashboard, accounts, transactions and markets pages use the full width of the screen.
   const path = useLocation().pathname;
-  const fullWidth = path === "/" || path.startsWith("/accounts") || path.startsWith("/transactions");
+  const fullWidth = path === "/" || ["/accounts", "/transactions", "/markets"].some((prefix) => path.startsWith(prefix));
   const maxWidth = fullWidth ? "none" : 1080;
 
   return (
@@ -110,29 +160,26 @@ export function AppLayout() {
           component="nav"
           sx={{ display: "flex", gap: { xs: 0, sm: 0.5 }, flex: 1, minWidth: 0, overflowX: "auto", scrollbarWidth: "none" }}
         >
-          {NAV.map((item) => (
-            <Button
-              key={item.to}
-              component={NavLink}
-              to={item.to}
-              end={item.end}
-              variant="text"
-              color="inherit"
-              startIcon={<MdiIcon path={item.icon} />}
-              aria-label={item.label}
-              sx={{
-                ...navButtonSx,
-                "&.active": { color: "primary.main", bgcolor: "rgb(var(--mui-palette-primary-mainChannel) / 0.08)" },
-              }}
-            >
-              <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-                {item.label}
-              </Box>
-            </Button>
-          ))}
-          {PLANNED_NAV.map((section) => (
-            <PlannedNavMenu key={section.label} {...section} />
-          ))}
+          {NAV.map((item) =>
+            item.kind === "link" ? (
+              <Button
+                key={item.label}
+                component={NavLink}
+                to={item.to}
+                variant="text"
+                color="inherit"
+                startIcon={<MdiIcon path={item.icon} />}
+                aria-label={item.label}
+                sx={{ ...navButtonSx, "&.active": activeSx }}
+              >
+                <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
+                  {item.label}
+                </Box>
+              </Button>
+            ) : (
+              <NavMenu key={item.label} item={item} active={(item.activePaths ?? []).some((prefix) => path.startsWith(prefix))} />
+            ),
+          )}
         </Box>
 
         <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
@@ -150,8 +197,9 @@ export function AppLayout() {
   );
 }
 
-/** A navigation item with a dropdown of pages that are not built yet. */
-function PlannedNavMenu({ label, icon, items }: (typeof PLANNED_NAV)[number]) {
+/** A navigation item with a dropdown: built pages open, planned ones say "not available yet". */
+function NavMenu({ item, active }: { item: NavMenuItem; active: boolean }) {
+  const navigate = useNavigate();
   const [notAvailable, setNotAvailable] = useState<string | null>(null);
 
   return (
@@ -163,29 +211,41 @@ function PlannedNavMenu({ label, icon, items }: (typeof PLANNED_NAV)[number]) {
             aria-expanded={open}
             variant="text"
             color="inherit"
-            startIcon={<MdiIcon path={icon} />}
+            startIcon={<MdiIcon path={item.icon} />}
             endIcon={<MdiIcon path={mdiChevronDown} />}
-            aria-label={label}
-            sx={{ ...navButtonSx, "& .MuiButton-endIcon": { display: { xs: "none", sm: "inherit" }, ml: 0.25 } }}
+            aria-label={item.label}
+            sx={{ ...navButtonSx, ...(active ? activeSx : {}), "& .MuiButton-endIcon": { display: { xs: "none", sm: "inherit" }, ml: 0.25 } }}
           >
             <Box component="span" sx={{ display: { xs: "none", sm: "inline" } }}>
-              {label}
+              {item.label}
             </Box>
           </Button>
         )}
       >
         {(close) =>
-          items.map((item) => (
-            <MenuItem
-              key={item}
-              onClick={() => {
-                close();
-                setNotAvailable(`${label}: ${item}`);
-              }}
-            >
-              {item}
-            </MenuItem>
-          ))
+          item.entries.flatMap((entry, index) => {
+            const startsGroup = entry.group !== undefined && entry.group !== item.entries[index - 1]?.group;
+            return [
+              ...(startsGroup
+                ? [
+                    ...(index > 0 ? [<Divider key={`divider-${entry.group}`} />] : []),
+                    <ListSubheader key={`group-${entry.group}`} sx={{ lineHeight: "32px", bgcolor: "transparent" }}>
+                      {entry.group}
+                    </ListSubheader>,
+                  ]
+                : []),
+              <MenuItem
+                key={entry.label}
+                onClick={() => {
+                  close();
+                  if (entry.to) void navigate(entry.to);
+                  else setNotAvailable(`${item.label}: ${entry.label}`);
+                }}
+              >
+                {entry.label}
+              </MenuItem>,
+            ];
+          })
         }
       </HoverMenu>
       <NotAvailableDialog feature={notAvailable} onClose={() => setNotAvailable(null)} />
