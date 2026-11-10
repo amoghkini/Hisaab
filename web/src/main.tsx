@@ -8,6 +8,7 @@ import { PrivacyModeProvider } from "@/appearance/PrivacyMode";
 import { ThemeColorProvider } from "@/appearance/ThemeColorProvider";
 import { GuestOnly, RequireAuth } from "@/auth/session";
 import { AppLayout } from "@/layouts/AppLayout";
+import { AccountEnquiryPage } from "@/pages/accounts/AccountEnquiryPage";
 import { AccountsPage } from "@/pages/accounts/AccountsPage";
 import { CategoriesPage } from "@/pages/categories/CategoriesPage";
 import { HomePage } from "@/pages/HomePage";
@@ -39,6 +40,7 @@ createRoot(root).render(
                   <Route index element={<HomePage />} />
                   <Route path="transactions" element={<TransactionsPage />} />
                   <Route path="accounts" element={<AccountsPage />} />
+                  <Route path="accounts/:accountId" element={<AccountEnquiryPage />} />
                   <Route path="categories" element={<CategoriesPage />} />
                   <Route path="profile" element={<ProfilePage />} />
                 </Route>

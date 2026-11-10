@@ -1,13 +1,17 @@
 import {
   mdiArrowDown,
   mdiArrowUp,
+  mdiBankTransfer,
+  mdiCashMinus,
   mdiDeleteOutline,
   mdiDotsVertical,
   mdiEyeOffOutline,
   mdiEyeOutline,
+  mdiInformationOutline,
   mdiListBoxOutline,
   mdiPencilOutline,
   mdiPlus,
+  mdiTrayArrowUp,
   mdiViewGridOutline,
   mdiWalletOutline,
 } from "@mdi/js";
@@ -52,7 +56,9 @@ import { useMe } from "@/auth/session";
 import { AccountIcon } from "@/components/AccountIcon";
 import { MdiIcon } from "@/components/MdiIcon";
 import { HIDDEN_AMOUNT, formatAmount } from "@/lib/money";
+import { AccountActionDialog, CASH_WITHDRAWAL_CATEGORIES, type AccountActionTarget } from "@/pages/accounts/AccountActionDialog";
 import { AccountDialog, type AccountDialogTarget } from "@/pages/accounts/AccountDialog";
+import { STATEMENT_UPLOAD_CATEGORIES, StatementUploadDialog } from "@/pages/accounts/StatementUploadDialog";
 import { ACCOUNTS_KEY, invalidateAccounts, useAccountSummary, useAccounts } from "@/pages/accounts/queries";
 
 /** "all", or one category. */
@@ -183,6 +189,8 @@ interface CardActions {
   onDelete: (account: Account) => void;
   onToggleHidden: (account: Account) => void;
   onMove: (account: Account, step: -1 | 1) => void;
+  onUploadStatement: (account: Account) => void;
+  onAction: (target: AccountActionTarget) => void;
 }
 
 /** One account: its icon, name and balance, with its actions. Like ezBookkeeping's account card. */
@@ -206,7 +214,21 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 2, py: 1.5, bgcolor: "action.hover" }}>
         <AccountIcon icon={account.icon} color={account.color} faded={account.hidden} />
-        <Typography sx={{ fontSize: "1rem", fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", opacity: account.hidden ? 0.6 : 1 }}>
+        <Typography
+          component={RouterLink}
+          to={`/accounts/${account.id}`}
+          sx={{
+            fontSize: "1rem",
+            fontWeight: 500,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            opacity: account.hidden ? 0.6 : 1,
+            color: "inherit",
+            textDecoration: "none",
+            "&:hover": { textDecoration: "underline" },
+          }}
+        >
           {account.name}
         </Typography>
         <Typography variant="caption" color="text.secondary" sx={{ flex: "none", alignSelf: "flex-end", pb: "2px" }}>
@@ -248,6 +270,22 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
           <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiListBoxOutline} />} component={RouterLink} to={`/transactions?account=${account.id}`}>
             Transactions
           </Button>
+          <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiInformationOutline} />} component={RouterLink} to={`/accounts/${account.id}`}>
+            Enquiry
+          </Button>
+          {CASH_WITHDRAWAL_CATEGORIES.includes(account.category) ? (
+            <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiCashMinus} />} onClick={() => actions.onAction({ kind: "withdraw", account })}>
+              Withdraw
+            </Button>
+          ) : null}
+          <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiBankTransfer} />} onClick={() => actions.onAction({ kind: "transfer", account })}>
+            Transfer
+          </Button>
+          {STATEMENT_UPLOAD_CATEGORIES.includes(account.category) ? (
+            <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiTrayArrowUp} />} onClick={() => actions.onUploadStatement(account)}>
+              Upload Statement
+            </Button>
+          ) : null}
           <Box className="account-card__actions" sx={{ display: "flex", gap: 0.25 }}>
           <Button
             size="small"
@@ -364,6 +402,8 @@ export function AccountsPage() {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [dialog, setDialog] = useState<AccountDialogTarget | null>(null);
   const [toDelete, setToDelete] = useState<Account | null>(null);
+  const [uploadFor, setUploadFor] = useState<Account | null>(null);
+  const [action, setAction] = useState<AccountActionTarget | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const currency = me.data?.default_currency ?? "INR";
 
@@ -419,6 +459,8 @@ export function AccountsPage() {
     onDelete: setToDelete,
     onToggleHidden: (account) => toggleHidden.mutate(account),
     onMove: (account, step) => move.mutate({ account, step }),
+    onUploadStatement: setUploadFor,
+    onAction: setAction,
   };
 
   const addIn = selection === "all" ? "savings" : selection;
@@ -568,6 +610,9 @@ export function AccountsPage() {
           </Box>
         </Paper>
       </Box>
+
+      <StatementUploadDialog account={uploadFor} onClose={() => setUploadFor(null)} />
+      <AccountActionDialog target={action} accounts={all} onClose={() => setAction(null)} />
 
       {dialog ? <AccountDialog target={dialog} onClose={() => setDialog(null)} /> : null}
 
