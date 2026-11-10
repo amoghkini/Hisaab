@@ -4,7 +4,6 @@ import AccordionDetails from "@mui/material/AccordionDetails";
 import AccordionSummary from "@mui/material/AccordionSummary";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Link from "@mui/material/Link";
@@ -25,6 +24,7 @@ import { useThemeColor } from "@/appearance/ThemeColorProvider";
 import { useSetMe } from "@/auth/session";
 import { AuthLayout } from "@/components/AuthLayout";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { Loading, Spinner } from "@/components/Loading";
 import { MdiIcon } from "@/components/MdiIcon";
 import { PasswordField } from "@/components/PasswordField";
 import { AmountColorField, CurrencyField, FirstDayOfWeekField, ThemeColorField, ThemeModeField } from "@/components/PreferenceFields";
@@ -104,11 +104,7 @@ function PresetCategories({ enabled }: { enabled: boolean }) {
   const presets = useQuery({ queryKey: ["category-presets"], queryFn: fetchPresetCategories, staleTime: Infinity });
 
   if (presets.isPending) {
-    return (
-      <Box sx={{ display: "grid", placeItems: "center", py: 6 }}>
-        <CircularProgress size={28} />
-      </Box>
-    );
+    return <Loading size="small" label="Loading categories…" />;
   }
   if (presets.isError) {
     return (
@@ -344,7 +340,7 @@ export function SignupPage() {
             ) : (
               <Button type="submit" disabled={busy} endIcon={busy ? undefined : <MdiIcon path={mdiCheck} />}>
                 Submit
-                {busy ? <CircularProgress size={20} color="inherit" sx={{ ml: 1 }} /> : null}
+                {busy ? <Spinner size={20} style={{ marginLeft: 8 }} /> : null}
               </Button>
             )}
           </Box>

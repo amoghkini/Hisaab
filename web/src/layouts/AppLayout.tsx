@@ -34,6 +34,7 @@ import { signOut, updateMe, type User } from "@/api/auth";
 import { usePrivacyMode } from "@/appearance/PrivacyMode";
 import { useMe, useSetMe } from "@/auth/session";
 import { Logo } from "@/components/Logo";
+import { setAmountFormat } from "@/lib/money";
 import { HoverMenu } from "@/components/HoverMenu";
 import { MarketTicker } from "@/components/MarketTicker";
 import { MdiIcon } from "@/components/MdiIcon";
@@ -126,10 +127,16 @@ const navButtonSx = {
 
 /** The frame of the signed-in pages: a top bar with the navigation, and the page below it. */
 export function AppLayout() {
-  // The dashboard, accounts, transactions and markets pages use the full width of the screen.
+  // The dashboard, accounts, transactions, markets and settings pages use the full width of the screen.
   const path = useLocation().pathname;
-  const fullWidth = path === "/" || ["/accounts", "/transactions", "/markets"].some((prefix) => path.startsWith(prefix));
+  const fullWidth = path === "/" || ["/accounts", "/transactions", "/markets", "/settings"].some((prefix) => path.startsWith(prefix));
   const maxWidth = fullWidth ? "none" : 1080;
+
+  // Amounts are written the user's way. When that changes, the page is drawn again; the settings stay as they are
+  // (that is where it changed, and it previews its own amounts).
+  const me = useMe();
+  const formatKey = setAmountFormat({ digitGrouping: me.data?.digit_grouping ?? "indian", currencyDisplay: me.data?.currency_display ?? "symbol" });
+  const pageKey = path.startsWith("/settings") ? "settings" : formatKey;
 
   return (
     <Box sx={{ minHeight: "100dvh" }}>
@@ -191,7 +198,7 @@ export function AppLayout() {
       </Box>
 
       <Box component="main" sx={{ maxWidth, mx: "auto", px: { xs: 2, sm: 3 }, py: 3 }}>
-        <Outlet />
+        <Outlet key={pageKey} />
       </Box>
     </Box>
   );
@@ -343,7 +350,7 @@ function UserMenu() {
           key="settings"
           onClick={() => {
             close();
-            void navigate("/profile");
+            void navigate("/settings/profile");
           }}
         >
           <ListItemIcon>
@@ -355,7 +362,7 @@ function UserMenu() {
           key="categories"
           onClick={() => {
             close();
-            void navigate("/categories");
+            void navigate("/settings/categories");
           }}
         >
           <ListItemIcon>

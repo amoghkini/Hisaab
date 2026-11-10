@@ -1,7 +1,6 @@
 import { mdiGithub, mdiGoogle } from "@mdi/js";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
 import Divider from "@mui/material/Divider";
 import Link from "@mui/material/Link";
 import Snackbar from "@mui/material/Snackbar";
@@ -15,6 +14,7 @@ import { signIn } from "@/api/auth";
 import { errorMessage } from "@/api/client";
 import { useSetMe } from "@/auth/session";
 import { AuthLayout } from "@/components/AuthLayout";
+import { Spinner } from "@/components/Loading";
 import { MdiIcon } from "@/components/MdiIcon";
 import { NotAvailableDialog } from "@/components/NotAvailableDialog";
 import { PasswordField } from "@/components/PasswordField";
@@ -85,7 +85,7 @@ export function LoginPage() {
             </Box>
             <Button type="submit" fullWidth disabled={empty || login.isPending}>
               Log In
-              {login.isPending ? <CircularProgress size={22} color="inherit" sx={{ ml: 1 }} /> : null}
+              {login.isPending ? <Spinner size={22} style={{ marginLeft: 8 }} /> : null}
             </Button>
             <Divider className="auth-message">
               <Typography variant="body2">or</Typography>

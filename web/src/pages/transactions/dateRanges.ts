@@ -9,8 +9,13 @@ export interface DateSpan {
 /** The most days one list can cover; the API refuses more. */
 export const MAX_RANGE_DAYS = 366;
 
-/** India's financial year starts in April. */
-const FISCAL_YEAR_START_MONTH = 3;
+/** The user's calendar settings that presets depend on. */
+export interface CalendarSettings {
+  /** 0 is Sunday ... 6 is Saturday. */
+  firstDayOfWeek: number;
+  /** 1 is January ... 12 is December; India's financial year starts in April. */
+  fiscalYearStartMonth: number;
+}
 
 export type DateRangePreset =
   | "today"
@@ -26,7 +31,7 @@ export type DateRangePreset =
   | "this_fy"
   | "last_fy";
 
-/** Like ezBookkeeping's date ranges, with India's financial year in place of a configurable one. */
+/** Like ezBookkeeping's date ranges. The financial year starts in the month chosen on the settings page. */
 export const DATE_RANGE_PRESETS: { value: DateRangePreset; name: string }[] = [
   { value: "today", name: "Today" },
   { value: "yesterday", name: "Yesterday" },
@@ -46,13 +51,14 @@ function span(start: Date, end: Date): DateSpan {
   return { start: toIsoDate(start), end: toIsoDate(end) };
 }
 
-function fiscalYearStart(date: Date): Date {
-  const year = date.getMonth() >= FISCAL_YEAR_START_MONTH ? date.getFullYear() : date.getFullYear() - 1;
-  return new Date(year, FISCAL_YEAR_START_MONTH, 1);
+function fiscalYearStart(date: Date, startMonth: number): Date {
+  const month = startMonth - 1;
+  const year = date.getMonth() >= month ? date.getFullYear() : date.getFullYear() - 1;
+  return new Date(year, month, 1);
 }
 
 /** The days a preset covers today. */
-export function presetSpan(preset: DateRangePreset, firstDayOfWeek: number): DateSpan {
+export function presetSpan(preset: DateRangePreset, { firstDayOfWeek, fiscalYearStartMonth }: CalendarSettings): DateSpan {
   const now = today();
   switch (preset) {
     case "today":
@@ -82,20 +88,20 @@ export function presetSpan(preset: DateRangePreset, firstDayOfWeek: number): Dat
     case "last_year":
       return span(new Date(now.getFullYear() - 1, 0, 1), new Date(now.getFullYear() - 1, 11, 31));
     case "this_fy": {
-      const start = fiscalYearStart(now);
+      const start = fiscalYearStart(now, fiscalYearStartMonth);
       return span(start, addDays(addMonths(start, 12), -1));
     }
     case "last_fy": {
-      const start = addMonths(fiscalYearStart(now), -12);
+      const start = addMonths(fiscalYearStart(now, fiscalYearStartMonth), -12);
       return span(start, addDays(addMonths(start, 12), -1));
     }
   }
 }
 
 /** The preset that covers exactly these days today, if one does. */
-export function matchingPreset(range: DateSpan, firstDayOfWeek: number): DateRangePreset | undefined {
+export function matchingPreset(range: DateSpan, calendar: CalendarSettings): DateRangePreset | undefined {
   return DATE_RANGE_PRESETS.find(({ value }) => {
-    const preset = presetSpan(value, firstDayOfWeek);
+    const preset = presetSpan(value, calendar);
     return preset.start === range.start && preset.end === range.end;
   })?.value;
 }

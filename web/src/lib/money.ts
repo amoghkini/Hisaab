@@ -3,30 +3,73 @@
  * exactly. These helpers turn them into text.
  */
 
+import type { CurrencyDisplay, DigitGrouping } from "@/api/auth";
+
+/** How amounts are written: the user's choices on the settings page. */
+export interface AmountFormat {
+  digitGrouping: DigitGrouping;
+  currencyDisplay: CurrencyDisplay;
+}
+
+export const DEFAULT_AMOUNT_FORMAT: AmountFormat = { digitGrouping: "indian", currencyDisplay: "symbol" };
+
+let amountFormat = DEFAULT_AMOUNT_FORMAT;
 const formatters = new Map<string, Intl.NumberFormat>();
+
+/**
+ * Use these choices for every amount from now on. Returns a key that changes with them, so pages can be redrawn.
+ * The app frame calls it with the signed-in user's settings.
+ */
+export function setAmountFormat(format: AmountFormat): string {
+  if (format.digitGrouping !== amountFormat.digitGrouping || format.currencyDisplay !== amountFormat.currencyDisplay) {
+    amountFormat = format;
+    formatters.clear();
+  }
+  return `${format.digitGrouping}:${format.currencyDisplay}`;
+}
+
+function numberFormat(currency: string, compact: boolean, format: AmountFormat): Intl.NumberFormat {
+  // en-IN groups as 1,00,000 and en-US as 100,000; both write the decimal point as ".".
+  const locale = format.digitGrouping === "international" ? "en-US" : "en-IN";
+  const digits = fractionDigits(currency);
+  return new Intl.NumberFormat(locale, {
+    useGrouping: format.digitGrouping !== "none",
+    signDisplay: "negative", // no minus sign on a zero, such as a paid-off card's -0
+    ...(format.currencyDisplay === "none"
+      ? { style: "decimal", minimumFractionDigits: digits, maximumFractionDigits: digits }
+      : { style: "currency", currency, currencyDisplay: format.currencyDisplay === "code" ? "code" : "narrowSymbol" }),
+    ...(compact ? { notation: "compact", minimumFractionDigits: 0, maximumFractionDigits: 1 } : {}),
+  });
+}
 
 function formatter(currency: string, compact: boolean): Intl.NumberFormat {
   const key = `${currency}:${compact}`;
   let found = formatters.get(key);
   if (!found) {
-    found = new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency,
-      currencyDisplay: "narrowSymbol",
-      ...(compact ? { notation: "compact", maximumFractionDigits: 1 } : {}),
-    });
+    found = numberFormat(currency, compact, amountFormat);
     formatters.set(key, found);
   }
   return found;
 }
 
+const minorUnits = new Map<string, number>();
+
 /** How many minor units make one major unit: 100 for INR, 1 for JPY. */
 export function minorUnitsPerMajor(currency: string): number {
-  return 10 ** (formatter(currency, false).resolvedOptions().maximumFractionDigits ?? 2);
+  let found = minorUnits.get(currency);
+  if (found === undefined) {
+    const digits = new Intl.NumberFormat("en", { style: "currency", currency }).resolvedOptions().maximumFractionDigits ?? 2;
+    found = 10 ** digits;
+    minorUnits.set(currency, found);
+  }
+  return found;
 }
 
-export function formatAmount(minor: number, currency: string, options: { compact?: boolean } = {}): string {
-  return formatter(currency, options.compact ?? false).format(minor / minorUnitsPerMajor(currency));
+/** Pass `format` to preview choices that are not saved yet; otherwise the user's are used. */
+export function formatAmount(minor: number, currency: string, options: { compact?: boolean; format?: AmountFormat } = {}): string {
+  const compact = options.compact ?? false;
+  const found = options.format ? numberFormat(currency, compact, options.format) : formatter(currency, compact);
+  return found.format(minor / minorUnitsPerMajor(currency));
 }
 
 /** What a hidden amount shows, as ezBookkeeping does. */

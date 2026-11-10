@@ -2,12 +2,12 @@ import { mdiEyeOffOutline, mdiEyeOutline, mdiRefresh } from "@mdi/js";
 import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
-import CircularProgress from "@mui/material/CircularProgress";
 import IconButton from "@mui/material/IconButton";
 import Skeleton from "@mui/material/Skeleton";
 import Tooltip from "@mui/material/Tooltip";
 import { useIsFetching, useQueryClient } from "@tanstack/react-query";
 
+import { Spinner } from "@/components/Loading";
 import { MdiIcon } from "@/components/MdiIcon";
 import { OVERVIEW_KEY, useMoney, useOverview, usePeriodSummary } from "@/pages/overview/OverviewContext";
 import { WidgetCard } from "@/pages/overview/WidgetCard";
@@ -36,7 +36,7 @@ export function MonthOverviewWidget() {
             onClick={() => void client.invalidateQueries({ queryKey: [OVERVIEW_KEY] })}
             sx={{ ml: 1 }}
           >
-            {refreshing ? <CircularProgress size={20} /> : <MdiIcon path={mdiRefresh} />}
+            {refreshing ? <Spinner size={20} /> : <MdiIcon path={mdiRefresh} />}
           </IconButton>
         </Tooltip>
       </Box>

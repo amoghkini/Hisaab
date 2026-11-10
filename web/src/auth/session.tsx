@@ -1,9 +1,8 @@
-import Box from "@mui/material/Box";
-import CircularProgress from "@mui/material/CircularProgress";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Navigate, Outlet, useLocation } from "react-router-dom";
 
 import { fetchMe, type User } from "@/api/auth";
+import { Loading } from "@/components/Loading";
 
 const ME = ["me"];
 const HOME = "/";
@@ -29,11 +28,7 @@ function afterLoginPath(state: unknown): string {
 }
 
 function FullScreenSpinner() {
-  return (
-    <Box sx={{ display: "grid", placeItems: "center", minHeight: "100dvh" }}>
-      <CircularProgress size={40} />
-    </Box>
-  );
+  return <Loading size="screen" />;
 }
 
 /** Pages that need a signed-in user. Everyone else goes to the login page and comes back afterwards. */

@@ -31,6 +31,7 @@ import {
   type TransactionInput,
   type TransactionType,
 } from "@/api/transactions";
+import { useMe } from "@/auth/session";
 import { AccountIcon } from "@/components/AccountIcon";
 import { CategoryIcon } from "@/components/CategoryIcon";
 import { MdiIcon } from "@/components/MdiIcon";
@@ -93,7 +94,8 @@ function emptyDraft(type: TransactionType, accountId: number | ""): Draft {
   };
 }
 
-function draftFor(target: TransactionDialogTarget, accounts: Account[]): Draft {
+/** A new transaction starts on the account asked for, else the default account (settings), else the last used. */
+function draftFor(target: TransactionDialogTarget, accounts: Account[], defaultAccountId: number | null): Draft {
   if (target.mode === "edit") {
     const { transaction } = target;
     const currencyOf = (id: number | null) => accounts.find((account) => account.id === id)?.currency ?? "INR";
@@ -110,7 +112,8 @@ function draftFor(target: TransactionDialogTarget, accounts: Account[]): Draft {
   }
   const last = readLastUsed();
   const usable = (id: number | null | undefined) => accounts.some((account) => account.id === id && !account.hidden);
-  const accountId = usable(target.accountId) ? target.accountId! : usable(last.accountId) ? last.accountId! : (accounts.find((account) => !account.hidden)?.id ?? "");
+  const accountId =
+    [target.accountId, defaultAccountId, last.accountId].find((id): id is number => usable(id)) ?? accounts.find((account) => !account.hidden)?.id ?? "";
   return emptyDraft(last.type, accountId);
 }
 
@@ -210,7 +213,8 @@ export function TransactionDialog({ target, onClose, onSaved }: { target: Transa
   const accounts = useAccounts();
   const categories = useCategories();
   const allAccounts = accounts.data ?? [];
-  const [draft, setDraft] = useState<Draft>(() => draftFor(target, allAccounts));
+  const defaultAccountId = useMe().data?.default_account_id ?? null;
+  const [draft, setDraft] = useState<Draft>(() => draftFor(target, allAccounts, defaultAccountId));
   const [serverError, setServerError] = useState<ApiError | null>(null);
   const [confirmDelete, setConfirmDelete] = useState(false);
   const amountRef = useRef<HTMLInputElement>(null);

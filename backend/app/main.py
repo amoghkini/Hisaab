@@ -8,6 +8,7 @@ from app.accounts.router import router as accounts_router
 from app.auth.router import router as auth_router
 from app.categories.router import router as categories_router
 from app.config import Settings
+from app.data.router import router as data_router
 from app.db import make_engine
 from app.errors import install_error_handlers
 from app.migrate import upgrade_database
@@ -34,6 +35,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
     app.include_router(accounts_router)
     app.include_router(transactions_router)
     app.include_router(overview_router)
+    app.include_router(data_router)
 
     @app.get("/api/health", tags=["health"])
     def health() -> dict[str, str]:

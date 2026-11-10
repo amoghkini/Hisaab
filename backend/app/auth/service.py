@@ -8,14 +8,18 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from app.accounts.models import Account
 from app.auth.models import AuthSession, User
-from app.auth.schemas import SignInIn, SignUpIn
+from app.auth.schemas import PasswordChangeIn, SignInIn, SignUpIn, UpdateMeIn
 from app.db import utcnow
 from app.errors import ApiError
 
 _hasher = PasswordHasher()
 # Checked when the email is unknown, so a wrong email takes as long as a wrong password.
 _DUMMY_HASH = _hasher.hash("not-a-real-password")
+# How stale a session's "last seen" may get before a request updates it, so most requests do not write.
+_TOUCH_EVERY = timedelta(minutes=5)
+USER_AGENT_MAX = 255
 
 
 def _email_taken() -> ApiError:
@@ -64,23 +68,99 @@ def authenticate(db: Session, data: SignInIn) -> User:
     return user
 
 
-def start_session(db: Session, user: User, days: int) -> str:
+def start_session(db: Session, user: User, days: int, user_agent: str = "") -> str:
     """Create a session and return its token. The token itself is never stored."""
     token = secrets.token_urlsafe(32)
-    db.add(AuthSession(user_id=user.id, token_hash=_hash_token(token), expires_at=utcnow() + timedelta(days=days)))
+    db.add(
+        AuthSession(
+            user_id=user.id,
+            token_hash=_hash_token(token),
+            expires_at=utcnow() + timedelta(days=days),
+            user_agent=user_agent[:USER_AGENT_MAX],
+        )
+    )
     return token
 
 
-def user_for_token(db: Session, token: str) -> User | None:
+def session_for_token(db: Session, token: str) -> AuthSession | None:
+    """The live session with this token. Updates when it was last seen, at most every few minutes."""
     found = db.scalar(select(AuthSession).where(AuthSession.token_hash == _hash_token(token)))
     if found is None:
         return None
-    if found.expires_at <= utcnow():
+    now = utcnow()
+    if found.expires_at <= now:
         db.delete(found)
         db.commit()
         return None
-    return db.get(User, found.user_id)
+    if found.last_seen_at is None or now - found.last_seen_at >= _TOUCH_EVERY:
+        found.last_seen_at = now
+        db.commit()
+    return found
+
+
+def user_for_token(db: Session, token: str) -> User | None:
+    found = session_for_token(db, token)
+    return db.get(User, found.user_id) if found else None
 
 
 def end_session(db: Session, token: str) -> None:
     db.execute(delete(AuthSession).where(AuthSession.token_hash == _hash_token(token)))
+
+
+def check_password(user: User, password: str, field: str = "password") -> None:
+    """Refuse with a field error unless this is the user's password."""
+    try:
+        _hasher.verify(user.password_hash, password)
+    except (VerifyMismatchError, InvalidHashError):
+        message = "The password is incorrect."
+        raise ApiError(400, "wrong_password", message, [{"field": field, "message": message}]) from None
+
+
+def update_me(db: Session, user: User, data: UpdateMeIn) -> User:
+    changes = data.changes()
+    if "email" in changes:
+        email = str(changes["email"]).lower()
+        taken = db.scalar(select(User.id).where(User.email == email, User.id != user.id))
+        if taken is not None:
+            raise _email_taken()
+        changes["email"] = email
+    account_id = changes.get("default_account_id")
+    if account_id is not None:
+        owner = db.scalar(select(Account.user_id).where(Account.id == account_id))
+        if owner != user.id:
+            message = "Choose one of your accounts."
+            raise ApiError(422, "validation_failed", message, [{"field": "default_account_id", "message": message}])
+    for name, value in changes.items():
+        setattr(user, name, value)
+    try:
+        db.commit()
+    except IntegrityError:  # the same email taken a moment earlier
+        db.rollback()
+        raise _email_taken() from None
+    return user
+
+
+def change_password(db: Session, user: User, data: PasswordChangeIn, keep_session_id: int) -> None:
+    """Set a new password and sign out every other device."""
+    check_password(user, data.current_password, "current_password")
+    user.password_hash = _hasher.hash(data.new_password)
+    end_other_sessions(db, user.id, keep_session_id)
+
+
+def list_sessions(db: Session, user_id: int) -> list[AuthSession]:
+    """The user's live sessions, the most recently used first."""
+    sessions = db.scalars(
+        select(AuthSession).where(AuthSession.user_id == user_id, AuthSession.expires_at > utcnow())
+    ).all()
+    return sorted(sessions, key=lambda item: item.last_seen_at or item.created_at, reverse=True)
+
+
+def end_session_by_id(db: Session, user_id: int, session_id: int) -> None:
+    found = db.scalar(select(AuthSession).where(AuthSession.id == session_id, AuthSession.user_id == user_id))
+    if found is None:
+        raise ApiError(404, "session_not_found", "That session has already ended.")
+    db.delete(found)
+
+
+def end_other_sessions(db: Session, user_id: int, keep_session_id: int) -> None:
+    db.execute(delete(AuthSession).where(AuthSession.user_id == user_id, AuthSession.id != keep_session_id))

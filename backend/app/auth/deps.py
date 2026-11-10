@@ -3,8 +3,8 @@ from typing import Annotated
 from fastapi import Depends, Request
 from sqlalchemy.orm import Session
 
-from app.auth.models import User
-from app.auth.service import user_for_token
+from app.auth.models import AuthSession, User
+from app.auth.service import session_for_token
 from app.config import Settings
 from app.db import get_db
 from app.errors import ApiError
@@ -27,10 +27,20 @@ def session_token(request: Request) -> str | None:
     return request.cookies.get(get_settings(request).cookie_name)
 
 
-def current_user(request: Request, db: DB) -> User:
+def current_session(request: Request, db: DB) -> AuthSession:
     token = session_token(request)
-    user = user_for_token(db, token) if token else None
-    if user is None:
+    found = session_for_token(db, token) if token else None
+    if found is None:
+        raise ApiError(401, "unauthorized", "Please log in to continue.")
+    return found
+
+
+CurrentSession = Annotated[AuthSession, Depends(current_session)]
+
+
+def current_user(found: CurrentSession, db: DB) -> User:
+    user = db.get(User, found.user_id)
+    if user is None:  # pragma: no cover - sessions go with their user
         raise ApiError(401, "unauthorized", "Please log in to continue.")
     return user
 

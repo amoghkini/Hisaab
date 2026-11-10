@@ -13,6 +13,15 @@ interface FieldProps<T> {
   value: T;
   onChange: (value: T) => void;
   disabled?: boolean;
+  /** Small and without a visible label, for a settings row that names the field beside it. */
+  compact?: boolean;
+}
+
+/** The props that make a field compact: small, full width, and named for screen readers only. */
+function compactProps(label: string, compact: boolean | undefined) {
+  return compact
+    ? { size: "small" as const, fullWidth: true, slotProps: { htmlInput: { "aria-label": label } } }
+    : { label };
 }
 
 function Dot({ color }: { color: string }) {
@@ -29,7 +38,7 @@ function DotLabel({ color, label }: { color: string; label: string }) {
 }
 
 /** Searchable list of every currency, shown as "INR - Indian Rupee". */
-export function CurrencyField({ value, onChange, disabled, label = "Default Currency" }: FieldProps<string> & { label?: string }) {
+export function CurrencyField({ value, onChange, disabled, compact, label = "Default Currency" }: FieldProps<string> & { label?: string }) {
   const options = allCurrencies();
   const selected = options.find((option) => option.code === value) ?? { code: value, name: value };
   return (
@@ -42,14 +51,20 @@ export function CurrencyField({ value, onChange, disabled, label = "Default Curr
       getOptionLabel={(option) => `${option.code} - ${option.name}`}
       isOptionEqualToValue={(option, current) => option.code === current.code}
       onChange={(_, option) => onChange(option.code)}
-      renderInput={(params) => <TextField {...params} label={label} placeholder={label} />}
+      renderInput={(params) =>
+        compact ? (
+          <TextField {...params} size="small" slotProps={{ ...params.slotProps, htmlInput: { ...params.slotProps.htmlInput, "aria-label": label } }} />
+        ) : (
+          <TextField {...params} label={label} placeholder={label} />
+        )
+      }
     />
   );
 }
 
-export function FirstDayOfWeekField({ value, onChange, disabled }: FieldProps<number>) {
+export function FirstDayOfWeekField({ value, onChange, disabled, compact }: FieldProps<number>) {
   return (
-    <TextField select label="First Day of Week" value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))}>
+    <TextField select {...compactProps("First Day of Week", compact)} value={value} disabled={disabled} onChange={(event) => onChange(Number(event.target.value))}>
       {WEEKDAYS.map((day, index) => (
         <MenuItem key={day} value={index}>
           {day}
@@ -59,9 +74,9 @@ export function FirstDayOfWeekField({ value, onChange, disabled }: FieldProps<nu
   );
 }
 
-export function AmountColorField({ label, value, onChange, disabled }: FieldProps<AmountColor> & { label: string }) {
+export function AmountColorField({ label, value, onChange, disabled, compact }: FieldProps<AmountColor> & { label: string }) {
   return (
-    <TextField select label={label} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as AmountColor)}>
+    <TextField select {...compactProps(label, compact)} value={value} disabled={disabled} onChange={(event) => onChange(event.target.value as AmountColor)}>
       {AMOUNT_COLORS.map((option) => (
         <MenuItem key={option.value} value={option.value}>
           <DotLabel color={option.css} label={option.name} />

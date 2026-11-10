@@ -18,7 +18,6 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Checkbox from "@mui/material/Checkbox";
 import Chip from "@mui/material/Chip";
-import CircularProgress from "@mui/material/CircularProgress";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -55,6 +54,7 @@ import { usePrivacyMode } from "@/appearance/PrivacyMode";
 import { useMe } from "@/auth/session";
 import { AccountIcon } from "@/components/AccountIcon";
 import { CategoryIcon } from "@/components/CategoryIcon";
+import { Spinner } from "@/components/Loading";
 import { MdiIcon } from "@/components/MdiIcon";
 import { endOfMonth, parseIsoDate, startOfMonth, toIsoDate } from "@/lib/dates";
 import { HIDDEN_AMOUNT, formatAmount } from "@/lib/money";
@@ -306,17 +306,18 @@ export function TransactionsPage() {
   const [exporting, setExporting] = useState(false);
   const currency = me.data?.default_currency ?? "INR";
   const firstDayOfWeek = me.data?.first_day_of_week ?? 0;
+  const calendarSettings = { firstDayOfWeek, fiscalYearStartMonth: me.data?.fiscal_year_start_month ?? 4 };
 
   // Every filter lives in the address, so a link (such as an account's "Transactions" button) can open a view.
   const view: View = params.get("view") === "calendar" ? "calendar" : "list";
-  const thisMonth = presetSpan("this_month", firstDayOfWeek);
+  const thisMonth = presetSpan("this_month", calendarSettings);
   const from = params.get("from");
   const to = params.get("to");
   const chosenRange: DateSpan = isIsoDate(from) && isIsoDate(to) && from <= to && daysIn({ start: from, end: to }) <= MAX_RANGE_DAYS ? { start: from, end: to } : thisMonth;
   // The calendar shows the whole month the range starts in.
   const calendarMonth = parseIsoDate(chosenRange.start);
   const range: DateSpan = view === "calendar" ? { start: toIsoDate(startOfMonth(calendarMonth)), end: toIsoDate(endOfMonth(calendarMonth)) } : chosenRange;
-  const preset = matchingPreset(range, firstDayOfWeek);
+  const preset = matchingPreset(range, calendarSettings);
   const types = TRANSACTION_TYPES.map((option) => option.value).filter((value) => params.getAll("type").includes(value));
   const accountIds = ids(params.getAll("account"));
   const categoryIds = ids(params.getAll("category"));
@@ -577,7 +578,7 @@ export function TransactionsPage() {
                 <SidebarLabel>Date range</SidebarLabel>
                 <Box sx={{ display: "flex", flexDirection: { xs: "row", md: "column" }, gap: 0.25, overflowX: { xs: "auto", md: "visible" }, mb: 2 }}>
                   {DATE_RANGE_PRESETS.map((option) => (
-                    <NavItem key={option.value} selected={preset === option.value} onClick={() => setRange(presetSpan(option.value, firstDayOfWeek))}>
+                    <NavItem key={option.value} selected={preset === option.value} onClick={() => setRange(presetSpan(option.value, calendarSettings))}>
                       {option.name}
                     </NavItem>
                   ))}
@@ -611,7 +612,7 @@ export function TransactionsPage() {
               variant="outlined"
               color="inherit"
               size="small"
-              startIcon={exporting ? <CircularProgress size={16} color="inherit" /> : <MdiIcon path={mdiDownload} />}
+              startIcon={exporting ? <Spinner size={16} /> : <MdiIcon path={mdiDownload} />}
               disabled={exporting || !data || data.total_count === 0}
               onClick={(event) => setExportAnchor(event.currentTarget)}
             >
@@ -624,7 +625,7 @@ export function TransactionsPage() {
             <Tooltip title="Refresh">
               <span>
                 <IconButton aria-label="Refresh" disabled={transactions.isFetching} onClick={() => void transactions.refetch()}>
-                  {transactions.isFetching ? <CircularProgress size={20} color="inherit" /> : <MdiIcon path={mdiRefresh} />}
+                  {transactions.isFetching ? <Spinner size={20} /> : <MdiIcon path={mdiRefresh} />}
                 </IconButton>
               </span>
             </Tooltip>
@@ -735,7 +736,7 @@ export function TransactionsPage() {
                                 key={option.value}
                                 selected={preset === option.value}
                                 onClick={() => {
-                                  setRange(presetSpan(option.value, firstDayOfWeek));
+                                  setRange(presetSpan(option.value, calendarSettings));
                                   close();
                                 }}
                               >

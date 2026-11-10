@@ -1,4 +1,4 @@
-from sqlalchemy import func, select
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.accounts.models import CATEGORY_ORDER, LIABILITY_CATEGORIES, Account, AccountCategory
@@ -101,6 +101,7 @@ def delete_account(db: Session, account: Account) -> None:
             "account_in_use",
             "This account has transactions, so it cannot be deleted. Delete them first, or hide the account.",
         )
+    db.execute(update(User).where(User.default_account_id == account.id).values(default_account_id=None))
     db.delete(account)
     db.commit()
 

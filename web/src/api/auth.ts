@@ -15,7 +15,21 @@ export interface User {
   first_day_of_week: number;
   expense_amount_color: AmountColor;
   income_amount_color: AmountColor;
+  /** The account new transactions start on, or null. */
+  default_account_id: number | null;
+  /** 1 is January ... 12 is December. India's financial year starts in April (4). */
+  fiscal_year_start_month: number;
+  digit_grouping: DigitGrouping;
+  currency_display: CurrencyDisplay;
+  /** When the account was made, as UTC "YYYY-MM-DDTHH:MM:SS". */
+  created_at: string;
 }
+
+/** 1,00,000 (Indian), 100,000 (international), or 100000. */
+export type DigitGrouping = "indian" | "international" | "none";
+
+/** What stands for the currency beside an amount: the sign, the code ("INR"), or nothing. */
+export type CurrencyDisplay = "symbol" | "code" | "none";
 
 export type AmountColor = "green" | "red" | "yellow" | "blue" | "black_or_white";
 
@@ -32,8 +46,10 @@ export interface Preferences {
   income_amount_color: AmountColor;
 }
 
-/** Leave a field out to keep it; theme_color null goes back to the default colour. */
-export type UpdateMeInput = Partial<Preferences>;
+/** Leave a field out to keep it; theme_color or default_account_id null goes back to none. */
+export type UpdateMeInput = Partial<
+  Preferences & Pick<User, "name" | "email" | "default_account_id" | "fiscal_year_start_month" | "digit_grouping" | "currency_display">
+>;
 
 export interface SignInInput {
   email: string;
@@ -63,6 +79,36 @@ export function signOut(): Promise<void> {
 
 export function updateMe(input: UpdateMeInput): Promise<User> {
   return request(`${AUTH}/me`, { method: "PATCH", body: input });
+}
+
+export function changePassword(input: { current_password: string; new_password: string }): Promise<void> {
+  return request(`${AUTH}/me/password`, { method: "POST", body: input });
+}
+
+/** A browser or device signed in to the account. */
+export interface AuthSession {
+  id: number;
+  /** The browser's User-Agent when it signed in; empty when unknown. */
+  user_agent: string;
+  /** UTC, "YYYY-MM-DDTHH:MM:SS". */
+  created_at: string;
+  last_seen_at: string | null;
+  expires_at: string;
+  /** The session this browser is using. */
+  current: boolean;
+}
+
+export function fetchSessions(): Promise<AuthSession[]> {
+  return request(`${AUTH}/sessions`);
+}
+
+export function endSession(id: number): Promise<void> {
+  return request(`${AUTH}/sessions/${id}`, { method: "DELETE" });
+}
+
+/** Sign out every device except this one. */
+export function endOtherSessions(): Promise<void> {
+  return request(`${AUTH}/sessions`, { method: "DELETE" });
 }
 
 /** The signed-in user, or null when nobody is. */
