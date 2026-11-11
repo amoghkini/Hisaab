@@ -98,7 +98,7 @@ function Stat({ label, kind, value, format }: { label: string; kind: "income" | 
         <Skeleton width={120} height={30} />
       ) : (
         <div className={`overview-widget__amount period-income-expense-widget__amount ${value ? `overview-amount--${kind}` : "overview-amount--none"}`}>
-          {value ? format(value) : "No data"}
+          {format(value)}
         </div>
       )}
     </div>
