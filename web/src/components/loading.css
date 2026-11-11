@@ -1,0 +1,146 @@
+/* The loading spinner: a ring of rays that grow and shrink out of turn while the whole star slowly turns.
+   Ported from TabVault (the loading-animation branch); the star takes the theme colour. */
+
+.hk-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  /* Hidden for the first moment, so a quick load never flashes it. */
+  animation: hk-loading-in 0.2s ease-out 0.2s both;
+}
+
+.hk-loading-page {
+  min-height: 14rem;
+}
+
+.hk-loading-small {
+  min-height: 5rem;
+}
+
+.hk-loading-screen {
+  flex-direction: column;
+  gap: 2.5rem;
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+.hk-spinner {
+  --size: 2.75rem;
+  --ray: 0.2rem;
+  position: relative;
+  display: block;
+  flex: none;
+  width: var(--size);
+  height: var(--size);
+  color: var(--mui-palette-primary-main);
+  animation: hk-loading-turn 9s linear infinite;
+}
+
+.hk-loading-small .hk-spinner {
+  --size: 1.9rem;
+  --ray: 0.15rem;
+}
+
+.hk-loading-screen .hk-spinner {
+  --size: 3.25rem;
+  --ray: 0.22rem;
+}
+
+/* Inside a button or icon button, in place of its icon, in the colour of the text around it. */
+.hk-spinner-inline {
+  display: inline-block;
+  vertical-align: middle;
+  color: inherit;
+}
+
+/* Each ray sits on its own turned square, twelve of them a twelfth of a turn apart. */
+.hk-spinner span {
+  position: absolute;
+  inset: 0;
+  transform: rotate(calc(var(--i) * 30deg));
+}
+
+/* The ray grows outward from a small gap round the centre. Delays are spread so no two neighbours move together. */
+.hk-spinner span::after {
+  content: "";
+  position: absolute;
+  top: 3%;
+  left: 50%;
+  width: var(--ray);
+  height: 35%;
+  margin-left: calc(var(--ray) / -2);
+  background: currentColor;
+  border-radius: var(--ray);
+  transform-origin: 50% 100%;
+  animation: hk-loading-ray 1.7s ease-in-out infinite;
+  animation-delay: calc(var(--i) * -0.37s);
+}
+
+@keyframes hk-loading-ray {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scaleY(0.3);
+  }
+
+  50% {
+    opacity: 1;
+    transform: scaleY(1);
+  }
+}
+
+@keyframes hk-loading-turn {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes hk-loading-in {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+/* Reduced motion: the star stands still, its rays at uneven lengths, and only pulses. */
+@media (prefers-reduced-motion: reduce) {
+  .hk-spinner {
+    animation: hk-loading-pulse 1.6s ease-in-out infinite alternate;
+  }
+
+  .hk-spinner span::after {
+    animation: none;
+    opacity: 1;
+    transform: scaleY(0.6);
+  }
+
+  .hk-spinner span:nth-child(3n + 2)::after {
+    transform: scaleY(0.8);
+  }
+
+  .hk-spinner span:nth-child(3n)::after {
+    transform: scaleY(1);
+  }
+}
+
+@keyframes hk-loading-pulse {
+  from {
+    opacity: 0.35;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.hk-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
