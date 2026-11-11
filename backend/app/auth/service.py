@@ -118,12 +118,6 @@ def check_password(user: User, password: str, field: str = "password") -> None:
 
 def update_me(db: Session, user: User, data: UpdateMeIn) -> User:
     changes = data.changes()
-    if "email" in changes:
-        email = str(changes["email"]).lower()
-        taken = db.scalar(select(User.id).where(User.email == email, User.id != user.id))
-        if taken is not None:
-            raise _email_taken()
-        changes["email"] = email
     account_id = changes.get("default_account_id")
     if account_id is not None:
         owner = db.scalar(select(Account.user_id).where(Account.id == account_id))
@@ -132,11 +126,7 @@ def update_me(db: Session, user: User, data: UpdateMeIn) -> User:
             raise ApiError(422, "validation_failed", message, [{"field": "default_account_id", "message": message}])
     for name, value in changes.items():
         setattr(user, name, value)
-    try:
-        db.commit()
-    except IntegrityError:  # the same email taken a moment earlier
-        db.rollback()
-        raise _email_taken() from None
+    db.commit()
     return user
 
 

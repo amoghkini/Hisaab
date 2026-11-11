@@ -48,20 +48,17 @@ def test_new_settings_have_defaults(client: TestClient) -> None:
     assert me["created_at"]
 
 
-def test_name_and_email_can_be_changed(client: TestClient) -> None:
-    me = client.patch(ME, json={"name": "  Asha Rao ", "email": "Asha.Rao@Example.com"}).json()
-    assert (me["name"], me["email"]) == ("Asha Rao", "asha.rao@example.com")
-    client.post("/api/v1/auth/sign-out")
-    assert client.post("/api/v1/auth/sign-in", json={**NEW_USER, "email": "asha.rao@example.com"}).status_code == 200
+def test_name_can_be_changed(client: TestClient) -> None:
+    assert client.patch(ME, json={"name": "  Asha Rao "}).json()["name"] == "Asha Rao"
 
 
-def test_email_of_another_account_is_refused(client: TestClient) -> None:
-    other = TestClient(client.app)
-    other.post("/api/v1/auth/sign-up", json={**NEW_USER, "email": "ravi@example.com"})
-    response = client.patch(ME, json={"email": "RAVI@example.com"})
-    assert response.status_code == 409
+@pytest.mark.parametrize("email", ["asha.rao@example.com", "asha@example.com"])
+def test_email_cannot_be_changed(client: TestClient, email: str) -> None:
+    response = client.patch(ME, json={"name": "Asha Rao", "email": email})
+    assert response.status_code == 422
     assert response.json()["error"]["details"][0]["field"] == "email"
-    assert client.patch(ME, json={"email": "asha@example.com"}).status_code == 200  # one's own is fine
+    me = client.get(ME).json()
+    assert (me["name"], me["email"]) == ("Asha", "asha@example.com")  # nothing in the refused request was saved
 
 
 @pytest.mark.parametrize(
@@ -69,7 +66,6 @@ def test_email_of_another_account_is_refused(client: TestClient) -> None:
     [
         ("name", "   "),
         ("name", None),
-        ("email", "not-an-email"),
         ("fiscal_year_start_month", 13),
         ("fiscal_year_start_month", 0),
         ("digit_grouping", "chinese"),

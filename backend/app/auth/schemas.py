@@ -80,7 +80,8 @@ class UpdateMeIn(BaseModel):
     """Only the fields sent are changed. `theme_color` or `default_account_id` null goes back to none."""
 
     name: Name | None = None
-    email: EmailStr | None = None
+    # The e-mail is the login and cannot be changed; sending it is refused rather than ignored.
+    email: str | None = Field(default=None, description="Cannot be changed; sending it is refused.")
     default_account_id: int | None = None
     fiscal_year_start_month: FiscalYearStartMonth | None = None
     digit_grouping: DigitGrouping | None = None
@@ -95,7 +96,6 @@ class UpdateMeIn(BaseModel):
     # Runs only for values that were sent, so a field left out stays out; an explicit null is refused.
     @field_validator(
         "name",
-        "email",
         "theme_mode",
         "default_currency",
         "first_day_of_week",
@@ -110,6 +110,11 @@ class UpdateMeIn(BaseModel):
         if value is None:
             raise ValueError("Cannot be null.")
         return value
+
+    @field_validator("email")
+    @classmethod
+    def email_fixed(cls, _: object) -> object:
+        raise ValueError("The e-mail address cannot be changed.")
 
     def changes(self) -> dict[str, object]:
         return {name: getattr(self, name) for name in self.model_fields_set}

@@ -24,7 +24,6 @@ const NO_ACCOUNT = "none";
 
 interface ProfileDraft {
   name: string;
-  email: string;
   default_account_id: number | null;
   default_currency: string;
   first_day_of_week: number;
@@ -36,7 +35,6 @@ interface ProfileDraft {
 function draftOf(user: User | null | undefined): ProfileDraft {
   return {
     name: user?.name ?? "",
-    email: user?.email ?? "",
     default_account_id: user?.default_account_id ?? null,
     default_currency: user?.default_currency ?? "INR",
     first_day_of_week: user?.first_day_of_week ?? 0,
@@ -100,7 +98,6 @@ export function ProfileSettingsPage() {
   ) as Partial<ProfileDraft>;
   const changed = Object.keys(changes).length > 0;
   const nameError = draft.name.trim() === "" ? "Enter your name." : null;
-  const emailError = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(draft.email.trim()) ? null : "Enter a valid e-mail address.";
   const serverFields = save.error instanceof ApiError ? save.error.fields : {};
   const busy = save.isPending || me.isPending;
 
@@ -115,7 +112,7 @@ export function ProfileSettingsPage() {
 
   return (
     <>
-      <SettingsPageTitle title="User Profile" description="Your name and e-mail, and the defaults Hisaab starts from." />
+      <SettingsPageTitle title="User Profile" description="Your name, and the defaults Hisaab starts from." />
 
       <SettingsCard
         title="Basic Settings"
@@ -124,7 +121,7 @@ export function ProfileSettingsPage() {
             <Button variant="text" color="inherit" disabled={!changed || busy} onClick={() => setDraft(saved)}>
               Reset
             </Button>
-            <Button disabled={!changed || busy || nameError !== null || emailError !== null} onClick={() => save.mutate(changes)}>
+            <Button disabled={!changed || busy || nameError !== null} onClick={() => save.mutate(changes)}>
               Save Changes
             </Button>
           </>
@@ -164,17 +161,14 @@ export function ProfileSettingsPage() {
             onChange={(event) => set("name")(event.target.value)}
           />
         </SettingRow>
-        <SettingRow label="E-mail" hint="You log in with it.">
+        <SettingRow label="E-mail" hint="You log in with it, so it cannot be changed.">
           <TextField
             fullWidth
             size="small"
             type="email"
-            autoComplete="email"
-            value={draft.email}
-            disabled={busy}
-            error={emailError !== null || "email" in serverFields}
-            helperText={emailError ?? serverFields.email}
-            onChange={(event) => set("email")(event.target.value)}
+            value={me.data?.email ?? ""}
+            slotProps={{ input: { readOnly: true }, htmlInput: { "aria-label": "E-mail", "aria-readonly": true } }}
+            sx={{ "& .MuiInputBase-root": { bgcolor: "action.hover" } }}
           />
         </SettingRow>
         <SettingRow label="Default Account" hint="New transactions start on this account.">

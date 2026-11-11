@@ -48,7 +48,7 @@ export interface Preferences {
 
 /** Leave a field out to keep it; theme_color or default_account_id null goes back to none. */
 export type UpdateMeInput = Partial<
-  Preferences & Pick<User, "name" | "email" | "default_account_id" | "fiscal_year_start_month" | "digit_grouping" | "currency_display">
+  Preferences & Pick<User, "name" | "default_account_id" | "fiscal_year_start_month" | "digit_grouping" | "currency_display">
 >;
 
 export interface SignInInput {
