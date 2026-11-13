@@ -40,7 +40,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 
 import {
   ACCOUNT_CATEGORIES,
@@ -571,7 +571,11 @@ export function AccountsPage() {
   const client = useQueryClient();
   const accounts = useAccounts();
   const money = useMoney();
-  const [selection, setSelection] = useState<Selection>("all");
+  // The chosen category lives in the URL (`?category=savings`) so it survives a reload and can be linked to; "all" is the bare URL.
+  const [params, setParams] = useSearchParams();
+  const categoryParam = params.get("category");
+  const selection: Selection = ACCOUNT_CATEGORIES.some((info) => info.value === categoryParam) ? (categoryParam as AccountCategory) : "all";
+  const setSelection = (next: Selection) => setParams(next === "all" ? {} : { category: next }, { replace: true });
   const [showHidden, setShowHidden] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [dialog, setDialog] = useState<AccountDialogTarget | null>(null);
