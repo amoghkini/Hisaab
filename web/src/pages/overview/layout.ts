@@ -12,7 +12,9 @@ export type WidgetConfig =
   | { type: "transaction-calendar" }
   | { type: "expense-ranking"; range: PeriodRange; itemCount: number }
   | { type: "expense-trend"; months: number }
-  | { type: "period-income-expense"; range: PeriodRange };
+  | { type: "period-income-expense"; range: PeriodRange }
+  | { type: "recent-transactions" }
+  | { type: "draft-transactions" };
 
 export type WidgetLayout = WidgetConfig & { id: string; x: number; y: number; w: number; h: number };
 
@@ -31,6 +33,8 @@ export const DEFAULT_LAYOUT: WidgetLayout[] = [
   { id: "this-week", type: "period-income-expense", range: "this_week", x: 3, y: 9, w: 3, h: 3 },
   { id: "this-month", type: "period-income-expense", range: "this_month", x: 6, y: 9, w: 3, h: 3 },
   { id: "this-year", type: "period-income-expense", range: "this_year", x: 9, y: 9, w: 3, h: 3 },
+  { id: "recent-transactions", type: "recent-transactions", x: 0, y: 12, w: 6, h: 5 },
+  { id: "draft-transactions", type: "draft-transactions", x: 6, y: 12, w: 6, h: 5 },
 ];
 
 /** Widgets whose content needs their full grid height even when the dashboard stacks on small screens. */
