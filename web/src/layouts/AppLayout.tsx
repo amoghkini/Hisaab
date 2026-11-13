@@ -3,6 +3,7 @@ import {
   mdiBriefcaseOutline,
   mdiCalculatorVariantOutline,
   mdiCalendarCheckOutline,
+  mdiChartBoxOutline,
   mdiChevronDown,
   mdiCogOutline,
   mdiEyeOffOutline,
@@ -110,6 +111,12 @@ const NAV: (NavLinkItem | NavMenuItem)[] = [
     label: "Taxes",
     icon: mdiCalculatorVariantOutline,
     entries: [{ label: "Tax summary" }, { label: "TDS and taxes paid" }, { label: "Deductions (80C, 80D and others)" }, { label: "Old vs new regime" }],
+  },
+  {
+    kind: "menu",
+    label: "Stats",
+    icon: mdiChartBoxOutline,
+    entries: [{ label: "Spending by category" }, { label: "Income vs expense" }, { label: "Trends" }, { label: "Monthly report" }],
   },
   { kind: "link", label: "Markets", icon: mdiFinance, to: "/markets" },
 ];

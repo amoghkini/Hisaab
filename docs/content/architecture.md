@@ -23,7 +23,7 @@ Dependencies point one way: `salary`, `investments`, `tax`, `schedules`, `budget
 
 ## Navigation
 
-Transactions · **Accounts ▾** · **Planning ▾** · **Wealth ▾** · **Salary ▾** · **Taxes ▾** · Markets (*built*)
+Transactions · **Accounts ▾** · **Planning ▾** · **Wealth ▾** · **Salary ▾** · **Taxes ▾** · **Stats ▾** · Markets (*built*)
 
 | Item | Entries |
 |---|---|
@@ -32,6 +32,7 @@ Transactions · **Accounts ▾** · **Planning ▾** · **Wealth ▾** · **Sala
 | Wealth | Net worth; Investments (Portfolio, EPF, PPF and NPS, FDs and RDs, mutual funds and stocks, Sync from EPFO); Property and vehicles; Insurance |
 | Salary | Payslips, Add a payslip, Employers and salary structure |
 | Taxes | Tax summary, TDS and taxes paid, Deductions, Old vs new regime |
+| Stats | Spending by category, Income vs expense, Trends, Monthly report |
 
 - There is no Overview item: the logo goes to the dashboard at `/`.
 - The dropdowns open on hover (`HoverMenu`). Entries not built yet say "not available yet".
