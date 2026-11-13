@@ -17,6 +17,8 @@ export interface User {
   income_amount_color: AmountColor;
   /** The account new transactions start on, or null. */
   default_account_id: number | null;
+  /** The savings or current account the salary is paid into, or null. */
+  salary_account_id: number | null;
   /** 1 is January ... 12 is December. India's financial year starts in April (4). */
   fiscal_year_start_month: number;
   digit_grouping: DigitGrouping;
@@ -46,9 +48,10 @@ export interface Preferences {
   income_amount_color: AmountColor;
 }
 
-/** Leave a field out to keep it; theme_color or default_account_id null goes back to none. */
+/** Leave a field out to keep it; theme_color, default_account_id or salary_account_id null goes back to none. */
 export type UpdateMeInput = Partial<
-  Preferences & Pick<User, "name" | "default_account_id" | "fiscal_year_start_month" | "digit_grouping" | "currency_display">
+  Preferences &
+    Pick<User, "name" | "default_account_id" | "salary_account_id" | "fiscal_year_start_month" | "digit_grouping" | "currency_display">
 >;
 
 export interface SignInInput {

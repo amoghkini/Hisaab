@@ -70,6 +70,9 @@ class UserOut(BaseModel):
     expense_amount_color: AmountColor
     income_amount_color: AmountColor
     default_account_id: int | None = Field(description="The account new transactions start on, or null.")
+    salary_account_id: int | None = Field(
+        description="The savings or current account the salary is paid into, or null."
+    )
     fiscal_year_start_month: int
     digit_grouping: DigitGrouping
     currency_display: CurrencyDisplay
@@ -77,12 +80,13 @@ class UserOut(BaseModel):
 
 
 class UpdateMeIn(BaseModel):
-    """Only the fields sent are changed. `theme_color` or `default_account_id` null goes back to none."""
+    """Only the fields sent are changed. Null `theme_color`, `default_account_id` or `salary_account_id` clears it."""
 
     name: Name | None = None
     # The e-mail is the login and cannot be changed; sending it is refused rather than ignored.
     email: str | None = Field(default=None, description="Cannot be changed; sending it is refused.")
     default_account_id: int | None = None
+    salary_account_id: int | None = None
     fiscal_year_start_month: FiscalYearStartMonth | None = None
     digit_grouping: DigitGrouping | None = None
     currency_display: CurrencyDisplay | None = None

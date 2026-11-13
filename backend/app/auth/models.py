@@ -38,6 +38,9 @@ class User(Base):
     # The account new transactions start on. No foreign key: SQLite here does not enforce them, so deleting an
     # account clears it in code (app.accounts.service.delete_account).
     default_account_id: Mapped[int | None] = mapped_column(Integer, default=None)
+    # The savings or current account the salary is paid into. Cleared in code like default_account_id, and also
+    # when the account stops being a savings or current account.
+    salary_account_id: Mapped[int | None] = mapped_column(Integer, default=None)
     fiscal_year_start_month: Mapped[int] = mapped_column(
         SmallInteger, default=DEFAULT_FISCAL_YEAR_START_MONTH, server_default=str(DEFAULT_FISCAL_YEAR_START_MONTH)
     )  # 1 is January ... 12 is December

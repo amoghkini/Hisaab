@@ -171,7 +171,7 @@ export function ProfileSettingsPage() {
             sx={{ "& .MuiInputBase-root": { bgcolor: "action.hover" } }}
           />
         </SettingRow>
-        <SettingRow label="Default Account" hint="New transactions start on this account.">
+        <SettingRow label="Primary Account" hint="New transactions start on this account. You can also set it on the Accounts page.">
           <TextField
             select
             fullWidth

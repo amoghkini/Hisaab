@@ -8,9 +8,13 @@ import {
   mdiEyeOffOutline,
   mdiEyeOutline,
   mdiInformationOutline,
+  mdiBriefcaseCheckOutline,
+  mdiBriefcaseOutline,
   mdiListBoxOutline,
   mdiPencilOutline,
   mdiPlus,
+  mdiStar,
+  mdiStarOutline,
   mdiTrayArrowUp,
   mdiViewGridOutline,
   mdiWalletOutline,
@@ -40,6 +44,7 @@ import { Link as RouterLink } from "react-router-dom";
 
 import {
   ACCOUNT_CATEGORIES,
+  SALARY_CATEGORIES,
   categoryInfo,
   deleteAccount,
   reorderAccounts,
@@ -48,11 +53,12 @@ import {
   type AccountCategory,
   type AccountCategoryInfo,
 } from "@/api/accounts";
+import { updateMe } from "@/api/auth";
 import { errorMessage } from "@/api/client";
 import { accountIconPath } from "@/appearance/accountIcons";
 import { usePrivacyMode } from "@/appearance/PrivacyMode";
 import { amountColorCss } from "@/appearance/preferences";
-import { useMe } from "@/auth/session";
+import { useMe, useSetMe } from "@/auth/session";
 import { AccountIcon } from "@/components/AccountIcon";
 import { MdiIcon } from "@/components/MdiIcon";
 import { HIDDEN_AMOUNT, formatAmount } from "@/lib/money";
@@ -188,16 +194,44 @@ interface CardActions {
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
   onToggleHidden: (account: Account) => void;
+  onTogglePrimary: (account: Account) => void;
+  onToggleSalary: (account: Account) => void;
   onMove: (account: Account, step: -1 | 1) => void;
   onUploadStatement: (account: Account) => void;
   onAction: (target: AccountActionTarget) => void;
 }
 
 /** One account: its icon, name and balance, with its actions. Like ezBookkeeping's account card. */
-function AccountCard({ account, first, last, busy, actions }: { account: Account; first: boolean; last: boolean; busy: boolean; actions: CardActions }) {
+function AccountCard({
+  account,
+  first,
+  last,
+  busy,
+  isPrimary,
+  isSalary,
+  actions,
+}: {
+  account: Account;
+  first: boolean;
+  last: boolean;
+  busy: boolean;
+  isPrimary: boolean;
+  isSalary: boolean;
+  actions: CardActions;
+}) {
   const money = useMoney();
   const owed = -account.balance;
   const available = account.credit_limit !== null ? account.credit_limit - owed : null;
+  const canBePrimaryOrSalary = SALARY_CATEGORIES.includes(account.category);
+  const canWithdraw = CASH_WITHDRAWAL_CATEGORIES.includes(account.category);
+  const canUploadStatement = STATEMENT_UPLOAD_CATEGORIES.includes(account.category);
+  // On phones the less-used actions live in a ⋮ menu instead of a long row of buttons; from `sm` up they are buttons.
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const fromMenu = (run: () => void) => () => {
+    setMenuAnchor(null);
+    run();
+  };
+  const wideOnly = { display: { xs: "none", sm: "inline-flex" } };
 
   return (
     <Paper
@@ -235,6 +269,16 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
           {account.currency}
           {account.number_suffix ? ` · ••${account.number_suffix}` : ""}
         </Typography>
+        {isPrimary ? (
+          <Tooltip title="New transactions start on this account">
+            <Chip size="small" label="Primary" color="primary" variant="outlined" />
+          </Tooltip>
+        ) : null}
+        {isSalary ? (
+          <Tooltip title="Your salary is paid into this account">
+            <Chip size="small" label="Salary" color="primary" variant="outlined" />
+          </Tooltip>
+        ) : null}
         {account.hidden ? <Chip size="small" label="Hidden" variant="outlined" /> : null}
         {!account.include_in_total ? (
           <Tooltip title="Not counted in total assets and liabilities">
@@ -242,7 +286,7 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
           </Tooltip>
         ) : null}
         <Box sx={{ flex: 1 }} />
-        <Box className="account-card__actions" sx={{ display: "flex", flex: "none" }}>
+        <Box className="account-card__actions" sx={{ display: { xs: "none", sm: "flex" }, flex: "none" }}>
           <Tooltip title="Move up">
             <span>
               <IconButton size="small" aria-label={`Move ${account.name} up`} disabled={first || busy} onClick={() => actions.onMove(account, -1)}>
@@ -273,20 +317,125 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
           <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiInformationOutline} />} component={RouterLink} to={`/accounts/${account.id}`}>
             Enquiry
           </Button>
-          {CASH_WITHDRAWAL_CATEGORIES.includes(account.category) ? (
-            <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiCashMinus} />} onClick={() => actions.onAction({ kind: "withdraw", account })}>
+          {canWithdraw ? (
+            <Button size="small" variant="text" color="inherit" sx={wideOnly} startIcon={<MdiIcon path={mdiCashMinus} />} onClick={() => actions.onAction({ kind: "withdraw", account })}>
               Withdraw
             </Button>
           ) : null}
           <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiBankTransfer} />} onClick={() => actions.onAction({ kind: "transfer", account })}>
             Transfer
           </Button>
-          {STATEMENT_UPLOAD_CATEGORIES.includes(account.category) ? (
-            <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiTrayArrowUp} />} onClick={() => actions.onUploadStatement(account)}>
+          {canUploadStatement ? (
+            <Button size="small" variant="text" color="inherit" sx={wideOnly} startIcon={<MdiIcon path={mdiTrayArrowUp} />} onClick={() => actions.onUploadStatement(account)}>
               Upload Statement
             </Button>
           ) : null}
-          <Box className="account-card__actions" sx={{ display: "flex", gap: 0.25 }}>
+          <Tooltip title="More">
+            <IconButton
+              size="small"
+              aria-label={`More actions for ${account.name}`}
+              sx={{ display: { xs: "inline-flex", sm: "none" } }}
+              onClick={(event) => setMenuAnchor(event.currentTarget)}
+            >
+              <MdiIcon path={mdiDotsVertical} fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={menuAnchor}
+            open={menuAnchor !== null}
+            onClose={() => setMenuAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+          >
+            <MenuItem disabled={first || busy} onClick={fromMenu(() => actions.onMove(account, -1))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiArrowUp} fontSize="small" />
+              </ListItemIcon>
+              Move Up
+            </MenuItem>
+            <MenuItem disabled={last || busy} onClick={fromMenu(() => actions.onMove(account, 1))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiArrowDown} fontSize="small" />
+              </ListItemIcon>
+              Move Down
+            </MenuItem>
+            <Divider />
+            {canWithdraw ? (
+              <MenuItem onClick={fromMenu(() => actions.onAction({ kind: "withdraw", account }))}>
+                <ListItemIcon>
+                  <MdiIcon path={mdiCashMinus} fontSize="small" />
+                </ListItemIcon>
+                Withdraw
+              </MenuItem>
+            ) : null}
+            {canUploadStatement ? (
+              <MenuItem onClick={fromMenu(() => actions.onUploadStatement(account))}>
+                <ListItemIcon>
+                  <MdiIcon path={mdiTrayArrowUp} fontSize="small" />
+                </ListItemIcon>
+                Upload Statement
+              </MenuItem>
+            ) : null}
+            {canBePrimaryOrSalary ? (
+              <MenuItem disabled={busy} onClick={fromMenu(() => actions.onTogglePrimary(account))}>
+                <ListItemIcon>
+                  <MdiIcon path={isPrimary ? mdiStar : mdiStarOutline} fontSize="small" />
+                </ListItemIcon>
+                {isPrimary ? "Unset Primary" : "Set as Primary"}
+              </MenuItem>
+            ) : null}
+            {canBePrimaryOrSalary ? (
+              <MenuItem disabled={busy} onClick={fromMenu(() => actions.onToggleSalary(account))}>
+                <ListItemIcon>
+                  <MdiIcon path={isSalary ? mdiBriefcaseCheckOutline : mdiBriefcaseOutline} fontSize="small" />
+                </ListItemIcon>
+                {isSalary ? "Unset Salary Account" : "Set as Salary Account"}
+              </MenuItem>
+            ) : null}
+            <MenuItem disabled={busy} onClick={fromMenu(() => actions.onToggleHidden(account))}>
+              <ListItemIcon>
+                <MdiIcon path={account.hidden ? mdiEyeOutline : mdiEyeOffOutline} fontSize="small" />
+              </ListItemIcon>
+              {account.hidden ? "Show" : "Hide"}
+            </MenuItem>
+            <MenuItem disabled={busy} onClick={fromMenu(() => actions.onEdit(account))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiPencilOutline} fontSize="small" />
+              </ListItemIcon>
+              Edit
+            </MenuItem>
+            <MenuItem disabled={busy} sx={{ color: "error.main" }} onClick={fromMenu(() => actions.onDelete(account))}>
+              <ListItemIcon sx={{ color: "inherit" }}>
+                <MdiIcon path={mdiDeleteOutline} fontSize="small" />
+              </ListItemIcon>
+              Delete
+            </MenuItem>
+          </Menu>
+          <Box className="account-card__actions" sx={{ display: { xs: "none", sm: "flex" }, gap: 0.25 }}>
+          {canBePrimaryOrSalary ? (
+            <>
+              <Button
+                size="small"
+                variant="text"
+                color="inherit"
+                disabled={busy}
+                startIcon={<MdiIcon path={isPrimary ? mdiStar : mdiStarOutline} />}
+                onClick={() => actions.onTogglePrimary(account)}
+              >
+                {isPrimary ? "Unset Primary" : "Set as Primary"}
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                color="inherit"
+                disabled={busy}
+                startIcon={<MdiIcon path={isSalary ? mdiBriefcaseCheckOutline : mdiBriefcaseOutline} />}
+                onClick={() => actions.onToggleSalary(account)}
+              >
+                {isSalary ? "Unset Salary Account" : "Set as Salary Account"}
+              </Button>
+            </>
+          ) : null}
           <Button
             size="small"
             variant="text"
@@ -346,6 +495,8 @@ function CategorySection({
   currency,
   heading,
   busy,
+  primaryId,
+  salaryId,
   actions,
 }: {
   info: AccountCategoryInfo;
@@ -353,6 +504,8 @@ function CategorySection({
   currency: string;
   heading: boolean;
   busy: boolean;
+  primaryId: number | null;
+  salaryId: number | null;
   actions: CardActions;
 }) {
   const money = useMoney();
@@ -372,7 +525,16 @@ function CategorySection({
       </Box>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         {accounts.map((account, index) => (
-          <AccountCard key={account.id} account={account} first={index === 0} last={index === accounts.length - 1} busy={busy} actions={actions} />
+          <AccountCard
+            key={account.id}
+            account={account}
+            first={index === 0}
+            last={index === accounts.length - 1}
+            busy={busy}
+            isPrimary={account.id === primaryId}
+            isSalary={account.id === salaryId}
+            actions={actions}
+          />
         ))}
       </Box>
     </Box>
@@ -394,6 +556,7 @@ function EmptyState({ onAdd, text }: { onAdd: () => void; text: string }) {
 /** The accounts page: totals and categories on the left, the chosen category's accounts on the right. */
 export function AccountsPage() {
   const me = useMe();
+  const setMe = useSetMe();
   const client = useQueryClient();
   const accounts = useAccounts();
   const money = useMoney();
@@ -418,6 +581,25 @@ export function AccountsPage() {
     onSuccess: async (account) => {
       await invalidateAccounts(client);
       setMessage(account.hidden ? `${account.name} is hidden` : `${account.name} is shown`);
+    },
+    onError,
+  });
+
+  // The primary account is the one new transactions start on (the profile's "default account"); asking again clears it.
+  const togglePrimary = useMutation({
+    mutationFn: (account: Account) => updateMe({ default_account_id: me.data?.default_account_id === account.id ? null : account.id }),
+    onSuccess: (user, account) => {
+      setMe(user);
+      setMessage(user.default_account_id === account.id ? `${account.name} is now your primary account` : `${account.name} is no longer your primary account`);
+    },
+    onError,
+  });
+
+  const toggleSalary = useMutation({
+    mutationFn: (account: Account) => updateMe({ salary_account_id: me.data?.salary_account_id === account.id ? null : account.id }),
+    onSuccess: (user, account) => {
+      setMe(user);
+      setMessage(user.salary_account_id === account.id ? `${account.name} is now your salary account` : `${account.name} is no longer your salary account`);
     },
     onError,
   });
@@ -453,11 +635,13 @@ export function AccountsPage() {
     onError,
   });
 
-  const busy = toggleHidden.isPending || remove.isPending || move.isPending;
+  const busy = toggleHidden.isPending || togglePrimary.isPending || toggleSalary.isPending || remove.isPending || move.isPending;
   const actions: CardActions = {
     onEdit: (account) => setDialog({ mode: "edit", account }),
     onDelete: setToDelete,
     onToggleHidden: (account) => toggleHidden.mutate(account),
+    onTogglePrimary: (account) => togglePrimary.mutate(account),
+    onToggleSalary: (account) => toggleSalary.mutate(account),
     onMove: (account, step) => move.mutate({ account, step }),
     onUploadStatement: setUploadFor,
     onAction: setAction,
@@ -603,6 +787,8 @@ export function AccountsPage() {
                   currency={currency}
                   heading={selection === "all"}
                   busy={busy}
+                  primaryId={me.data?.default_account_id ?? null}
+                  salaryId={me.data?.salary_account_id ?? null}
                   actions={actions}
                 />
               ))

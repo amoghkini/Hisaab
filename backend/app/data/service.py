@@ -36,3 +36,4 @@ def clear_data(db: Session, user: User, everything: bool) -> None:
         db.execute(delete(Category).where(Category.user_id == user.id, Category.parent_id.is_not(None)))
         db.execute(delete(Category).where(Category.user_id == user.id))
         user.default_account_id = None
+        user.salary_account_id = None

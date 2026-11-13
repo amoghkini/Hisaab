@@ -8,7 +8,7 @@ from sqlalchemy import delete, select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
-from app.accounts.models import Account
+from app.accounts.models import SALARY_CATEGORIES, Account
 from app.auth.models import AuthSession, User
 from app.auth.schemas import PasswordChangeIn, SignInIn, SignUpIn, UpdateMeIn
 from app.db import utcnow
@@ -118,12 +118,20 @@ def check_password(user: User, password: str, field: str = "password") -> None:
 
 def update_me(db: Session, user: User, data: UpdateMeIn) -> User:
     changes = data.changes()
-    account_id = changes.get("default_account_id")
-    if account_id is not None:
-        owner = db.scalar(select(Account.user_id).where(Account.id == account_id))
-        if owner != user.id:
-            message = "Choose one of your accounts."
-            raise ApiError(422, "validation_failed", message, [{"field": "default_account_id", "message": message}])
+    for field, allowed_categories, message in (
+        ("default_account_id", None, "Choose one of your accounts."),
+        ("salary_account_id", SALARY_CATEGORIES, "Choose one of your savings or current accounts."),
+    ):
+        account_id = changes.get(field)
+        if account_id is None:
+            continue
+        found = db.execute(select(Account.user_id, Account.category).where(Account.id == account_id)).one_or_none()
+        if (
+            found is None
+            or found.user_id != user.id
+            or (allowed_categories and found.category not in allowed_categories)
+        ):
+            raise ApiError(422, "validation_failed", message, [{"field": field, "message": message}])
     for name, value in changes.items():
         setattr(user, name, value)
     db.commit()
