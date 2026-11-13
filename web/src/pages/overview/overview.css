@@ -20,7 +20,10 @@
   position: relative;
 }
 
-/* Small screens: one widget under another, each at least as tall as its grid height. */
+/*
+ * Small screens: one widget under another. Cards hug their content, so a card with little in it does not sit in a
+ * tall slot with empty space under it; only the widgets marked fixed (charts, calendar) keep their full grid height.
+ */
 @media (max-width: 959px) {
   .overview-dashboard {
     display: flex;
@@ -29,7 +32,11 @@
   }
 
   .overview-dashboard__item {
-    min-height: var(--overview-item-height);
+    min-height: 0;
+  }
+
+  .monthly-expense-widget {
+    min-height: 10.5rem; /* room for its illustration */
   }
 
   .overview-dashboard__item--fixed {
@@ -655,4 +662,65 @@
   line-height: 0.9rem;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* ---------- Recent transactions ---------- */
+
+.recent-transactions-widget .overview-widget__body {
+  padding-block-end: 8px;
+}
+
+.recent-transactions-widget__item.MuiButtonBase-root {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 4px 0;
+  margin-bottom: 4px;
+  border-radius: 8px;
+  text-align: start;
+}
+
+.recent-transactions-widget__text {
+  display: flex;
+  flex: 1 1 auto;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.recent-transactions-widget__title {
+  overflow: hidden;
+  font-size: 0.875rem;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-transactions-widget__meta {
+  overflow: hidden;
+  color: rgba(var(--hk-on-surface), 0.6);
+  font-size: 0.75rem;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.recent-transactions-widget__amount {
+  flex: 0 0 auto;
+  padding-inline-start: 12px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* ---------- Draft transactions (placeholder) ---------- */
+
+.draft-transactions-widget__empty {
+  padding: 0 8px;
+  gap: 8px;
+  text-align: center;
+}
+
+.draft-transactions-widget__empty span {
+  max-width: 28rem;
+  font-size: 0.875rem;
+  line-height: 1.5;
 }

@@ -5,10 +5,12 @@ import { DEFAULT_LAYOUT, FIXED_HEIGHT_TYPES, GAP, ROW_HEIGHT, type WidgetLayout 
 import { OverviewProvider } from "@/pages/overview/OverviewContext";
 import { AssetSummaryWidget } from "@/pages/overview/widgets/AssetSummaryWidget";
 import { CalendarHeatmapWidget } from "@/pages/overview/widgets/CalendarHeatmapWidget";
+import { DraftTransactionsWidget } from "@/pages/overview/widgets/DraftTransactionsWidget";
 import { ExpenseRankingWidget } from "@/pages/overview/widgets/ExpenseRankingWidget";
 import { ExpenseTrendWidget } from "@/pages/overview/widgets/ExpenseTrendWidget";
 import { MonthOverviewWidget } from "@/pages/overview/widgets/MonthOverviewWidget";
 import { PeriodIncomeExpenseWidget } from "@/pages/overview/widgets/PeriodIncomeExpenseWidget";
+import { RecentTransactionsWidget } from "@/pages/overview/widgets/RecentTransactionsWidget";
 import { TransactionCalendarWidget } from "@/pages/overview/widgets/TransactionCalendarWidget";
 import "@/pages/overview/overview.css";
 
@@ -28,6 +30,10 @@ function Widget({ widget }: { widget: WidgetLayout }) {
       return <ExpenseTrendWidget months={widget.months} />;
     case "period-income-expense":
       return <PeriodIncomeExpenseWidget range={widget.range} />;
+    case "recent-transactions":
+      return <RecentTransactionsWidget />;
+    case "draft-transactions":
+      return <DraftTransactionsWidget />;
   }
 }
 
