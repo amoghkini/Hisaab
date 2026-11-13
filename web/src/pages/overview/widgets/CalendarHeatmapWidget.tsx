@@ -38,6 +38,7 @@ export function CalendarHeatmapWidget({ months }: { months: number }) {
   const daily = useDailyAmounts(toIsoDate(firstDay), toIsoDate(end));
 
   const expenseByDate = new Map((daily.data ?? []).map((day) => [day.date, day.expense]));
+  const incomeByDate = new Map((daily.data ?? []).map((day) => [day.date, day.income]));
   const sorted = [...expenseByDate.values()].filter(Boolean).sort((a, b) => a - b);
   const thresholds = [quantile(sorted, 0.25), quantile(sorted, 0.5), quantile(sorted, 0.75)];
   const levelOf = (amount: number) => (amount ? 1 + thresholds.filter((limit) => amount > limit).length : 0);
@@ -62,12 +63,27 @@ export function CalendarHeatmapWidget({ months }: { months: number }) {
       if (day.getDate() === 1 || day.getTime() === firstShown.getTime()) {
         monthLabels.push({ x: LEFT + week * STEP, text: day.toLocaleDateString(undefined, { month: "short" }), key: toIsoDate(day) });
       }
-      const amount = expenseByDate.get(toIsoDate(day)) ?? 0;
+      const isoDay = toIsoDate(day);
+      const amount = expenseByDate.get(isoDay) ?? 0;
+      const income = incomeByDate.get(isoDay) ?? 0;
       const level = levelOf(amount);
       const label = day.toLocaleDateString(undefined, { year: "numeric", month: "short", day: "numeric" });
-      const isoDay = toIsoDate(day);
+      const summary = `${label}: ${money(income)} income, ${money(amount)} expense`;
       cells.push(
-        <Tooltip key={isoDay} followCursor placement="top" title={amount ? `${label}: ${money(amount)} expense` : `${label}: no expense`}>
+        <Tooltip
+          key={isoDay}
+          followCursor
+          placement="top"
+          title={
+            <>
+              <strong>{label}</strong>
+              <br />
+              Income: {money(income)}
+              <br />
+              Expense: {money(amount)}
+            </>
+          }
+        >
           <rect
             x={LEFT + week * STEP}
             y={TOP + row * STEP}
@@ -76,7 +92,7 @@ export function CalendarHeatmapWidget({ months }: { months: number }) {
             rx={2.5}
             role="link"
             tabIndex={0}
-            aria-label={amount ? `${label}: ${money(amount)} expense` : `${label}: no expense`}
+            aria-label={summary}
             className={level ? "heatmap__cell" : "heatmap__cell heatmap__cell--empty"}
             style={level ? { opacity: LEVEL_OPACITY[level] } : undefined}
             onClick={() => openDay(isoDay)}
