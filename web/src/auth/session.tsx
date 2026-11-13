@@ -4,7 +4,7 @@ import { Navigate, Outlet, useLocation } from "react-router-dom";
 import { fetchMe, type User } from "@/api/auth";
 import { Loading } from "@/components/Loading";
 
-const ME = ["me"];
+export const ME = ["me"];
 const HOME = "/";
 
 /** Who is signed in: undefined while the first check runs, then a user or null. */

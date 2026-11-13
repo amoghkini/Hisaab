@@ -3,6 +3,7 @@ import {
   mdiBriefcaseOutline,
   mdiCalculatorVariantOutline,
   mdiCalendarCheckOutline,
+  mdiChartBoxOutline,
   mdiChevronDown,
   mdiCogOutline,
   mdiEyeOffOutline,
@@ -27,7 +28,7 @@ import { useColorScheme } from "@mui/material/styles";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useMutation } from "@tanstack/react-query";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Link as RouterLink, Outlet, useLocation, useNavigate } from "react-router-dom";
 
 import { signOut, updateMe, type User } from "@/api/auth";
@@ -111,6 +112,12 @@ const NAV: (NavLinkItem | NavMenuItem)[] = [
     icon: mdiCalculatorVariantOutline,
     entries: [{ label: "Tax summary" }, { label: "TDS and taxes paid" }, { label: "Deductions (80C, 80D and others)" }, { label: "Old vs new regime" }],
   },
+  {
+    kind: "menu",
+    label: "Stats",
+    icon: mdiChartBoxOutline,
+    entries: [{ label: "Spending by category" }, { label: "Income vs expense" }, { label: "Trends" }, { label: "Monthly report" }],
+  },
   { kind: "link", label: "Markets", icon: mdiFinance, to: "/markets" },
 ];
 
@@ -129,6 +136,11 @@ const navButtonSx = {
 export function AppLayout() {
   // The dashboard, accounts, transactions, markets and settings pages use the full width of the screen.
   const path = useLocation().pathname;
+  // A new page starts at the top, not wherever the last one was scrolled to. Only the path counts, so changing a
+  // filter on the same page (which only changes the query string) keeps its place.
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [path]);
   const fullWidth = path === "/" || ["/accounts", "/transactions", "/markets", "/settings"].some((prefix) => path.startsWith(prefix));
   const maxWidth = fullWidth ? "none" : 1080;
 

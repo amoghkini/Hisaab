@@ -1,7 +1,7 @@
 from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
-from app.accounts.models import CATEGORY_ORDER, LIABILITY_CATEGORIES, Account, AccountCategory
+from app.accounts.models import CATEGORY_ORDER, LIABILITY_CATEGORIES, SALARY_CATEGORIES, Account, AccountCategory
 from app.accounts.schemas import AccountIn, AccountOrderIn, AccountOut, AccountSummaryOut, AccountUpdate
 from app.auth.models import User
 from app.errors import ApiError
@@ -87,6 +87,8 @@ def update_account(db: Session, account: Account, data: AccountUpdate) -> Accoun
     new_category = changes.get("category")
     if new_category is not None and new_category != account.category:
         account.display_order = _next_order(db, account.user_id, str(new_category))  # goes last in its new category
+        if new_category not in SALARY_CATEGORIES:  # a loan or card cannot be where the salary is paid
+            db.execute(update(User).where(User.salary_account_id == account.id).values(salary_account_id=None))
     for name, value in changes.items():
         setattr(account, name, value)
     _keep_card_fields_for_cards(account)
@@ -102,6 +104,7 @@ def delete_account(db: Session, account: Account) -> None:
             "This account has transactions, so it cannot be deleted. Delete them first, or hide the account.",
         )
     db.execute(update(User).where(User.default_account_id == account.id).values(default_account_id=None))
+    db.execute(update(User).where(User.salary_account_id == account.id).values(salary_account_id=None))
     db.delete(account)
     db.commit()
 

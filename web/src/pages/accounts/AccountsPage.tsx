@@ -8,9 +8,13 @@ import {
   mdiEyeOffOutline,
   mdiEyeOutline,
   mdiInformationOutline,
+  mdiBriefcaseCheckOutline,
+  mdiBriefcaseOutline,
   mdiListBoxOutline,
   mdiPencilOutline,
   mdiPlus,
+  mdiStar,
+  mdiStarOutline,
   mdiTrayArrowUp,
   mdiViewGridOutline,
   mdiWalletOutline,
@@ -36,10 +40,11 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo, useState, type ReactNode } from "react";
-import { Link as RouterLink } from "react-router-dom";
+import { Link as RouterLink, useSearchParams } from "react-router-dom";
 
 import {
   ACCOUNT_CATEGORIES,
+  SALARY_CATEGORIES,
   categoryInfo,
   deleteAccount,
   reorderAccounts,
@@ -48,11 +53,12 @@ import {
   type AccountCategory,
   type AccountCategoryInfo,
 } from "@/api/accounts";
+import { updateMe } from "@/api/auth";
 import { errorMessage } from "@/api/client";
 import { accountIconPath } from "@/appearance/accountIcons";
 import { usePrivacyMode } from "@/appearance/PrivacyMode";
 import { amountColorCss } from "@/appearance/preferences";
-import { useMe } from "@/auth/session";
+import { useMe, useSetMe } from "@/auth/session";
 import { AccountIcon } from "@/components/AccountIcon";
 import { MdiIcon } from "@/components/MdiIcon";
 import { HIDDEN_AMOUNT, formatAmount } from "@/lib/money";
@@ -188,16 +194,46 @@ interface CardActions {
   onEdit: (account: Account) => void;
   onDelete: (account: Account) => void;
   onToggleHidden: (account: Account) => void;
+  onTogglePrimary: (account: Account) => void;
+  onToggleSalary: (account: Account) => void;
   onMove: (account: Account, step: -1 | 1) => void;
   onUploadStatement: (account: Account) => void;
   onAction: (target: AccountActionTarget) => void;
 }
 
 /** One account: its icon, name and balance, with its actions. Like ezBookkeeping's account card. */
-function AccountCard({ account, first, last, busy, actions }: { account: Account; first: boolean; last: boolean; busy: boolean; actions: CardActions }) {
+function AccountCard({
+  account,
+  first,
+  last,
+  busy,
+  isPrimary,
+  isSalary,
+  actions,
+}: {
+  account: Account;
+  first: boolean;
+  last: boolean;
+  busy: boolean;
+  isPrimary: boolean;
+  isSalary: boolean;
+  actions: CardActions;
+}) {
   const money = useMoney();
   const owed = -account.balance;
   const available = account.credit_limit !== null ? account.credit_limit - owed : null;
+  const canBePrimaryOrSalary = SALARY_CATEGORIES.includes(account.category);
+  const hasCardDetails = available !== null || (account.category === "credit_card" && account.statement_day !== null);
+  const canWithdraw = CASH_WITHDRAWAL_CATEGORIES.includes(account.category);
+  const canUploadStatement = STATEMENT_UPLOAD_CATEGORIES.includes(account.category);
+  // On phones the less-used actions live in a ⋮ menu instead of a long row of buttons; from `sm` up they are buttons.
+  // Withdraw stays a button on phones, since it is the quick one for cash.
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
+  const fromMenu = (run: () => void) => () => {
+    setMenuAnchor(null);
+    run();
+  };
+  const wideOnly = { display: { xs: "none", sm: "inline-flex" } };
 
   return (
     <Paper
@@ -214,35 +250,48 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 2, py: 1.5, bgcolor: "action.hover" }}>
         <AccountIcon icon={account.icon} color={account.color} faded={account.hidden} />
-        <Typography
-          component={RouterLink}
-          to={`/accounts/${account.id}`}
-          sx={{
-            fontSize: "1rem",
-            fontWeight: 500,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            opacity: account.hidden ? 0.6 : 1,
-            color: "inherit",
-            textDecoration: "none",
-            "&:hover": { textDecoration: "underline" },
-          }}
-        >
-          {account.name}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ flex: "none", alignSelf: "flex-end", pb: "2px" }}>
-          {account.currency}
-          {account.number_suffix ? ` · ••${account.number_suffix}` : ""}
-        </Typography>
-        {account.hidden ? <Chip size="small" label="Hidden" variant="outlined" /> : null}
-        {!account.include_in_total ? (
-          <Tooltip title="Not counted in total assets and liabilities">
-            <Chip size="small" label="Not in totals" variant="outlined" />
-          </Tooltip>
-        ) : null}
-        <Box sx={{ flex: 1 }} />
-        <Box className="account-card__actions" sx={{ display: "flex", flex: "none" }}>
+        {/* The name, then the currency and badges: on one line when there is room, wrapped under the name on phones. */}
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 1.25, rowGap: 0.5 }}>
+          <Typography
+            component={RouterLink}
+            to={`/accounts/${account.id}`}
+            sx={{
+              maxWidth: "100%",
+              fontSize: "1rem",
+              fontWeight: 500,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              opacity: account.hidden ? 0.6 : 1,
+              color: "inherit",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            {account.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ flex: "none" }}>
+            {account.currency}
+            {account.number_suffix ? ` · ••${account.number_suffix}` : ""}
+          </Typography>
+          {isPrimary ? (
+            <Tooltip title="New transactions start on this account">
+              <Chip size="small" label="Primary" color="primary" variant="outlined" />
+            </Tooltip>
+          ) : null}
+          {isSalary ? (
+            <Tooltip title="Your salary is paid into this account">
+              <Chip size="small" label="Salary" color="primary" variant="outlined" />
+            </Tooltip>
+          ) : null}
+          {account.hidden ? <Chip size="small" label="Hidden" variant="outlined" /> : null}
+          {!account.include_in_total ? (
+            <Tooltip title="Not counted in total assets and liabilities">
+              <Chip size="small" label="Not in totals" variant="outlined" />
+            </Tooltip>
+          ) : null}
+        </Box>
+        <Box className="account-card__actions" sx={{ display: { xs: "none", sm: "flex" }, flex: "none" }}>
           <Tooltip title="Move up">
             <span>
               <IconButton size="small" aria-label={`Move ${account.name} up`} disabled={first || busy} onClick={() => actions.onMove(account, -1)}>
@@ -257,6 +306,17 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
               </IconButton>
             </span>
           </Tooltip>
+        </Box>
+        {/* The balance, on the name's line. What is owed on a card or loan says so above the figure. */}
+        <Box sx={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "flex-end", textAlign: "end" }}>
+          {account.is_liability ? (
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+              Outstanding
+            </Typography>
+          ) : null}
+          <Typography sx={{ fontSize: "1.125rem", fontWeight: 500, lineHeight: 1.3, whiteSpace: "nowrap" }}>
+            {money(account.is_liability ? owed : account.balance, account.currency)}
+          </Typography>
         </Box>
       </Box>
       <Divider />
@@ -273,20 +333,123 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
           <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiInformationOutline} />} component={RouterLink} to={`/accounts/${account.id}`}>
             Enquiry
           </Button>
-          {CASH_WITHDRAWAL_CATEGORIES.includes(account.category) ? (
+          {canWithdraw ? (
             <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiCashMinus} />} onClick={() => actions.onAction({ kind: "withdraw", account })}>
               Withdraw
             </Button>
           ) : null}
-          <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiBankTransfer} />} onClick={() => actions.onAction({ kind: "transfer", account })}>
+          <Button size="small" variant="text" color="inherit" sx={wideOnly} startIcon={<MdiIcon path={mdiBankTransfer} />} onClick={() => actions.onAction({ kind: "transfer", account })}>
             Transfer
           </Button>
-          {STATEMENT_UPLOAD_CATEGORIES.includes(account.category) ? (
-            <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiTrayArrowUp} />} onClick={() => actions.onUploadStatement(account)}>
+          {canUploadStatement ? (
+            <Button size="small" variant="text" color="inherit" sx={wideOnly} startIcon={<MdiIcon path={mdiTrayArrowUp} />} onClick={() => actions.onUploadStatement(account)}>
               Upload Statement
             </Button>
           ) : null}
-          <Box className="account-card__actions" sx={{ display: "flex", gap: 0.25 }}>
+          <Tooltip title="More">
+            <IconButton
+              size="small"
+              aria-label={`More actions for ${account.name}`}
+              sx={{ display: { xs: "inline-flex", sm: "none" } }}
+              onClick={(event) => setMenuAnchor(event.currentTarget)}
+            >
+              <MdiIcon path={mdiDotsVertical} fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Menu
+            anchorEl={menuAnchor}
+            open={menuAnchor !== null}
+            onClose={() => setMenuAnchor(null)}
+            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            transformOrigin={{ vertical: "top", horizontal: "left" }}
+          >
+            <MenuItem disabled={first || busy} onClick={fromMenu(() => actions.onMove(account, -1))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiArrowUp} fontSize="small" />
+              </ListItemIcon>
+              Move Up
+            </MenuItem>
+            <MenuItem disabled={last || busy} onClick={fromMenu(() => actions.onMove(account, 1))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiArrowDown} fontSize="small" />
+              </ListItemIcon>
+              Move Down
+            </MenuItem>
+            <Divider />
+            <MenuItem onClick={fromMenu(() => actions.onAction({ kind: "transfer", account }))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiBankTransfer} fontSize="small" />
+              </ListItemIcon>
+              Transfer
+            </MenuItem>
+            {canUploadStatement ? (
+              <MenuItem onClick={fromMenu(() => actions.onUploadStatement(account))}>
+                <ListItemIcon>
+                  <MdiIcon path={mdiTrayArrowUp} fontSize="small" />
+                </ListItemIcon>
+                Upload Statement
+              </MenuItem>
+            ) : null}
+            {canBePrimaryOrSalary ? (
+              <MenuItem disabled={busy} onClick={fromMenu(() => actions.onTogglePrimary(account))}>
+                <ListItemIcon>
+                  <MdiIcon path={isPrimary ? mdiStar : mdiStarOutline} fontSize="small" />
+                </ListItemIcon>
+                {isPrimary ? "Unset Primary" : "Set as Primary"}
+              </MenuItem>
+            ) : null}
+            {canBePrimaryOrSalary ? (
+              <MenuItem disabled={busy} onClick={fromMenu(() => actions.onToggleSalary(account))}>
+                <ListItemIcon>
+                  <MdiIcon path={isSalary ? mdiBriefcaseCheckOutline : mdiBriefcaseOutline} fontSize="small" />
+                </ListItemIcon>
+                {isSalary ? "Unset Salary Account" : "Set as Salary Account"}
+              </MenuItem>
+            ) : null}
+            <MenuItem disabled={busy} onClick={fromMenu(() => actions.onToggleHidden(account))}>
+              <ListItemIcon>
+                <MdiIcon path={account.hidden ? mdiEyeOutline : mdiEyeOffOutline} fontSize="small" />
+              </ListItemIcon>
+              {account.hidden ? "Show" : "Hide"}
+            </MenuItem>
+            <MenuItem disabled={busy} onClick={fromMenu(() => actions.onEdit(account))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiPencilOutline} fontSize="small" />
+              </ListItemIcon>
+              Edit
+            </MenuItem>
+            <MenuItem disabled={busy} sx={{ color: "error.main" }} onClick={fromMenu(() => actions.onDelete(account))}>
+              <ListItemIcon sx={{ color: "inherit" }}>
+                <MdiIcon path={mdiDeleteOutline} fontSize="small" />
+              </ListItemIcon>
+              Delete
+            </MenuItem>
+          </Menu>
+          <Box className="account-card__actions" sx={{ display: { xs: "none", sm: "flex" }, gap: 0.25 }}>
+          {canBePrimaryOrSalary ? (
+            <>
+              <Button
+                size="small"
+                variant="text"
+                color="inherit"
+                disabled={busy}
+                startIcon={<MdiIcon path={isPrimary ? mdiStar : mdiStarOutline} />}
+                onClick={() => actions.onTogglePrimary(account)}
+              >
+                {isPrimary ? "Unset Primary" : "Set as Primary"}
+              </Button>
+              <Button
+                size="small"
+                variant="text"
+                color="inherit"
+                disabled={busy}
+                startIcon={<MdiIcon path={isSalary ? mdiBriefcaseCheckOutline : mdiBriefcaseOutline} />}
+                onClick={() => actions.onToggleSalary(account)}
+              >
+                {isSalary ? "Unset Salary Account" : "Set as Salary Account"}
+              </Button>
+            </>
+          ) : null}
           <Button
             size="small"
             variant="text"
@@ -305,22 +468,19 @@ function AccountCard({ account, first, last, busy, actions }: { account: Account
           </Button>
           </Box>
         </Box>
-        <Box sx={{ flex: 1 }} />
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {account.category === "credit_card" && account.statement_day ? (
-            <Typography variant="caption" color="text.secondary">
-              Statement on the {ordinal(account.statement_day)}
-            </Typography>
-          ) : null}
-          {account.is_liability ? (
-            <>
-              <BalanceFigure label="Outstanding" value={money(owed, account.currency)} />
+        {hasCardDetails ? (
+          <>
+            <Box sx={{ flex: 1 }} />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {account.category === "credit_card" && account.statement_day ? (
+                <Typography variant="caption" color="text.secondary">
+                  Statement on the {ordinal(account.statement_day)}
+                </Typography>
+              ) : null}
               {available !== null ? <BalanceFigure label="Available credit" value={money(available, account.currency)} /> : null}
-            </>
-          ) : (
-            <BalanceFigure value={money(account.balance, account.currency)} />
-          )}
-        </Box>
+            </Box>
+          </>
+        ) : null}
       </Box>
     </Paper>
   );
@@ -346,6 +506,8 @@ function CategorySection({
   currency,
   heading,
   busy,
+  primaryId,
+  salaryId,
   actions,
 }: {
   info: AccountCategoryInfo;
@@ -353,6 +515,8 @@ function CategorySection({
   currency: string;
   heading: boolean;
   busy: boolean;
+  primaryId: number | null;
+  salaryId: number | null;
   actions: CardActions;
 }) {
   const money = useMoney();
@@ -372,7 +536,16 @@ function CategorySection({
       </Box>
       <Box sx={{ display: "flex", flexDirection: "column", gap: 1.5 }}>
         {accounts.map((account, index) => (
-          <AccountCard key={account.id} account={account} first={index === 0} last={index === accounts.length - 1} busy={busy} actions={actions} />
+          <AccountCard
+            key={account.id}
+            account={account}
+            first={index === 0}
+            last={index === accounts.length - 1}
+            busy={busy}
+            isPrimary={account.id === primaryId}
+            isSalary={account.id === salaryId}
+            actions={actions}
+          />
         ))}
       </Box>
     </Box>
@@ -394,10 +567,15 @@ function EmptyState({ onAdd, text }: { onAdd: () => void; text: string }) {
 /** The accounts page: totals and categories on the left, the chosen category's accounts on the right. */
 export function AccountsPage() {
   const me = useMe();
+  const setMe = useSetMe();
   const client = useQueryClient();
   const accounts = useAccounts();
   const money = useMoney();
-  const [selection, setSelection] = useState<Selection>("all");
+  // The chosen category lives in the URL (`?category=savings`) so it survives a reload and can be linked to; "all" is the bare URL.
+  const [params, setParams] = useSearchParams();
+  const categoryParam = params.get("category");
+  const selection: Selection = ACCOUNT_CATEGORIES.some((info) => info.value === categoryParam) ? (categoryParam as AccountCategory) : "all";
+  const setSelection = (next: Selection) => setParams(next === "all" ? {} : { category: next }, { replace: true });
   const [showHidden, setShowHidden] = useState(false);
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const [dialog, setDialog] = useState<AccountDialogTarget | null>(null);
@@ -418,6 +596,25 @@ export function AccountsPage() {
     onSuccess: async (account) => {
       await invalidateAccounts(client);
       setMessage(account.hidden ? `${account.name} is hidden` : `${account.name} is shown`);
+    },
+    onError,
+  });
+
+  // The primary account is the one new transactions start on (the profile's "default account"); asking again clears it.
+  const togglePrimary = useMutation({
+    mutationFn: (account: Account) => updateMe({ default_account_id: me.data?.default_account_id === account.id ? null : account.id }),
+    onSuccess: (user, account) => {
+      setMe(user);
+      setMessage(user.default_account_id === account.id ? `${account.name} is now your primary account` : `${account.name} is no longer your primary account`);
+    },
+    onError,
+  });
+
+  const toggleSalary = useMutation({
+    mutationFn: (account: Account) => updateMe({ salary_account_id: me.data?.salary_account_id === account.id ? null : account.id }),
+    onSuccess: (user, account) => {
+      setMe(user);
+      setMessage(user.salary_account_id === account.id ? `${account.name} is now your salary account` : `${account.name} is no longer your salary account`);
     },
     onError,
   });
@@ -453,11 +650,13 @@ export function AccountsPage() {
     onError,
   });
 
-  const busy = toggleHidden.isPending || remove.isPending || move.isPending;
+  const busy = toggleHidden.isPending || togglePrimary.isPending || toggleSalary.isPending || remove.isPending || move.isPending;
   const actions: CardActions = {
     onEdit: (account) => setDialog({ mode: "edit", account }),
     onDelete: setToDelete,
     onToggleHidden: (account) => toggleHidden.mutate(account),
+    onTogglePrimary: (account) => togglePrimary.mutate(account),
+    onToggleSalary: (account) => toggleSalary.mutate(account),
     onMove: (account, step) => move.mutate({ account, step }),
     onUploadStatement: setUploadFor,
     onAction: setAction,
@@ -603,6 +802,8 @@ export function AccountsPage() {
                   currency={currency}
                   heading={selection === "all"}
                   busy={busy}
+                  primaryId={me.data?.default_account_id ?? null}
+                  salaryId={me.data?.salary_account_id ?? null}
                   actions={actions}
                 />
               ))
