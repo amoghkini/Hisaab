@@ -43,7 +43,7 @@ export function TransactionCalendarWidget() {
               key={key}
               className={`transaction-calendar-widget__day${isToday ? " transaction-calendar-widget__day--today" : ""}`}
               aria-label={day.toLocaleDateString(undefined, { dateStyle: "full" })}
-              onClick={() => void navigate("/transactions")}
+              onClick={() => void navigate(`/transactions?from=${key}&to=${key}`)}
             >
               <span className={amounts ? "transaction-calendar-widget__date transaction-calendar-widget__date--busy" : "transaction-calendar-widget__date"}>
                 {day.getDate()}
