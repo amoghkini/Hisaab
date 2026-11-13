@@ -223,9 +223,11 @@ function AccountCard({
   const owed = -account.balance;
   const available = account.credit_limit !== null ? account.credit_limit - owed : null;
   const canBePrimaryOrSalary = SALARY_CATEGORIES.includes(account.category);
+  const hasCardDetails = available !== null || (account.category === "credit_card" && account.statement_day !== null);
   const canWithdraw = CASH_WITHDRAWAL_CATEGORIES.includes(account.category);
   const canUploadStatement = STATEMENT_UPLOAD_CATEGORIES.includes(account.category);
   // On phones the less-used actions live in a ⋮ menu instead of a long row of buttons; from `sm` up they are buttons.
+  // Withdraw stays a button on phones, since it is the quick one for cash.
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null);
   const fromMenu = (run: () => void) => () => {
     setMenuAnchor(null);
@@ -248,44 +250,47 @@ function AccountCard({
     >
       <Box sx={{ display: "flex", alignItems: "center", gap: 1.25, px: 2, py: 1.5, bgcolor: "action.hover" }}>
         <AccountIcon icon={account.icon} color={account.color} faded={account.hidden} />
-        <Typography
-          component={RouterLink}
-          to={`/accounts/${account.id}`}
-          sx={{
-            fontSize: "1rem",
-            fontWeight: 500,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            opacity: account.hidden ? 0.6 : 1,
-            color: "inherit",
-            textDecoration: "none",
-            "&:hover": { textDecoration: "underline" },
-          }}
-        >
-          {account.name}
-        </Typography>
-        <Typography variant="caption" color="text.secondary" sx={{ flex: "none", alignSelf: "flex-end", pb: "2px" }}>
-          {account.currency}
-          {account.number_suffix ? ` · ••${account.number_suffix}` : ""}
-        </Typography>
-        {isPrimary ? (
-          <Tooltip title="New transactions start on this account">
-            <Chip size="small" label="Primary" color="primary" variant="outlined" />
-          </Tooltip>
-        ) : null}
-        {isSalary ? (
-          <Tooltip title="Your salary is paid into this account">
-            <Chip size="small" label="Salary" color="primary" variant="outlined" />
-          </Tooltip>
-        ) : null}
-        {account.hidden ? <Chip size="small" label="Hidden" variant="outlined" /> : null}
-        {!account.include_in_total ? (
-          <Tooltip title="Not counted in total assets and liabilities">
-            <Chip size="small" label="Not in totals" variant="outlined" />
-          </Tooltip>
-        ) : null}
-        <Box sx={{ flex: 1 }} />
+        {/* The name, then the currency and badges: on one line when there is room, wrapped under the name on phones. */}
+        <Box sx={{ flex: 1, minWidth: 0, display: "flex", flexWrap: "wrap", alignItems: "center", columnGap: 1.25, rowGap: 0.5 }}>
+          <Typography
+            component={RouterLink}
+            to={`/accounts/${account.id}`}
+            sx={{
+              maxWidth: "100%",
+              fontSize: "1rem",
+              fontWeight: 500,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+              opacity: account.hidden ? 0.6 : 1,
+              color: "inherit",
+              textDecoration: "none",
+              "&:hover": { textDecoration: "underline" },
+            }}
+          >
+            {account.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" sx={{ flex: "none" }}>
+            {account.currency}
+            {account.number_suffix ? ` · ••${account.number_suffix}` : ""}
+          </Typography>
+          {isPrimary ? (
+            <Tooltip title="New transactions start on this account">
+              <Chip size="small" label="Primary" color="primary" variant="outlined" />
+            </Tooltip>
+          ) : null}
+          {isSalary ? (
+            <Tooltip title="Your salary is paid into this account">
+              <Chip size="small" label="Salary" color="primary" variant="outlined" />
+            </Tooltip>
+          ) : null}
+          {account.hidden ? <Chip size="small" label="Hidden" variant="outlined" /> : null}
+          {!account.include_in_total ? (
+            <Tooltip title="Not counted in total assets and liabilities">
+              <Chip size="small" label="Not in totals" variant="outlined" />
+            </Tooltip>
+          ) : null}
+        </Box>
         <Box className="account-card__actions" sx={{ display: { xs: "none", sm: "flex" }, flex: "none" }}>
           <Tooltip title="Move up">
             <span>
@@ -301,6 +306,17 @@ function AccountCard({
               </IconButton>
             </span>
           </Tooltip>
+        </Box>
+        {/* The balance, on the name's line. What is owed on a card or loan says so above the figure. */}
+        <Box sx={{ flex: "none", display: "flex", flexDirection: "column", alignItems: "flex-end", textAlign: "end" }}>
+          {account.is_liability ? (
+            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2 }}>
+              Outstanding
+            </Typography>
+          ) : null}
+          <Typography sx={{ fontSize: "1.125rem", fontWeight: 500, lineHeight: 1.3, whiteSpace: "nowrap" }}>
+            {money(account.is_liability ? owed : account.balance, account.currency)}
+          </Typography>
         </Box>
       </Box>
       <Divider />
@@ -318,11 +334,11 @@ function AccountCard({
             Enquiry
           </Button>
           {canWithdraw ? (
-            <Button size="small" variant="text" color="inherit" sx={wideOnly} startIcon={<MdiIcon path={mdiCashMinus} />} onClick={() => actions.onAction({ kind: "withdraw", account })}>
+            <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiCashMinus} />} onClick={() => actions.onAction({ kind: "withdraw", account })}>
               Withdraw
             </Button>
           ) : null}
-          <Button size="small" variant="text" color="inherit" startIcon={<MdiIcon path={mdiBankTransfer} />} onClick={() => actions.onAction({ kind: "transfer", account })}>
+          <Button size="small" variant="text" color="inherit" sx={wideOnly} startIcon={<MdiIcon path={mdiBankTransfer} />} onClick={() => actions.onAction({ kind: "transfer", account })}>
             Transfer
           </Button>
           {canUploadStatement ? (
@@ -360,14 +376,12 @@ function AccountCard({
               Move Down
             </MenuItem>
             <Divider />
-            {canWithdraw ? (
-              <MenuItem onClick={fromMenu(() => actions.onAction({ kind: "withdraw", account }))}>
-                <ListItemIcon>
-                  <MdiIcon path={mdiCashMinus} fontSize="small" />
-                </ListItemIcon>
-                Withdraw
-              </MenuItem>
-            ) : null}
+            <MenuItem onClick={fromMenu(() => actions.onAction({ kind: "transfer", account }))}>
+              <ListItemIcon>
+                <MdiIcon path={mdiBankTransfer} fontSize="small" />
+              </ListItemIcon>
+              Transfer
+            </MenuItem>
             {canUploadStatement ? (
               <MenuItem onClick={fromMenu(() => actions.onUploadStatement(account))}>
                 <ListItemIcon>
@@ -454,22 +468,19 @@ function AccountCard({
           </Button>
           </Box>
         </Box>
-        <Box sx={{ flex: 1 }} />
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
-          {account.category === "credit_card" && account.statement_day ? (
-            <Typography variant="caption" color="text.secondary">
-              Statement on the {ordinal(account.statement_day)}
-            </Typography>
-          ) : null}
-          {account.is_liability ? (
-            <>
-              <BalanceFigure label="Outstanding" value={money(owed, account.currency)} />
+        {hasCardDetails ? (
+          <>
+            <Box sx={{ flex: 1 }} />
+            <Box sx={{ display: "flex", alignItems: "center", gap: 2, px: 1, flexWrap: "wrap", justifyContent: "flex-end" }}>
+              {account.category === "credit_card" && account.statement_day ? (
+                <Typography variant="caption" color="text.secondary">
+                  Statement on the {ordinal(account.statement_day)}
+                </Typography>
+              ) : null}
               {available !== null ? <BalanceFigure label="Available credit" value={money(available, account.currency)} /> : null}
-            </>
-          ) : (
-            <BalanceFigure value={money(account.balance, account.currency)} />
-          )}
-        </Box>
+            </Box>
+          </>
+        ) : null}
       </Box>
     </Paper>
   );
