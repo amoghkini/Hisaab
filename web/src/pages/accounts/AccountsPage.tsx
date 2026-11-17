@@ -8,8 +8,6 @@ import {
   mdiEyeOffOutline,
   mdiEyeOutline,
   mdiInformationOutline,
-  mdiBriefcaseCheckOutline,
-  mdiBriefcaseOutline,
   mdiListBoxOutline,
   mdiPencilOutline,
   mdiPlus,
@@ -66,6 +64,7 @@ import { AccountActionDialog, CASH_WITHDRAWAL_CATEGORIES, type AccountActionTarg
 import { AccountDialog, type AccountDialogTarget } from "@/pages/accounts/AccountDialog";
 import { STATEMENT_UPLOAD_CATEGORIES, StatementUploadDialog } from "@/pages/accounts/StatementUploadDialog";
 import { ACCOUNTS_KEY, invalidateAccounts, useAccountSummary, useAccounts } from "@/pages/accounts/queries";
+import { useSalaryAccountIds } from "@/pages/salary/queries";
 
 /** "all", or one category. */
 type Selection = AccountCategory | "all";
@@ -195,7 +194,6 @@ interface CardActions {
   onDelete: (account: Account) => void;
   onToggleHidden: (account: Account) => void;
   onTogglePrimary: (account: Account) => void;
-  onToggleSalary: (account: Account) => void;
   onMove: (account: Account, step: -1 | 1) => void;
   onUploadStatement: (account: Account) => void;
   onAction: (target: AccountActionTarget) => void;
@@ -222,7 +220,7 @@ function AccountCard({
   const money = useMoney();
   const owed = -account.balance;
   const available = account.credit_limit !== null ? account.credit_limit - owed : null;
-  const canBePrimaryOrSalary = SALARY_CATEGORIES.includes(account.category);
+  const canBePrimary = SALARY_CATEGORIES.includes(account.category);
   const hasCardDetails = available !== null || (account.category === "credit_card" && account.statement_day !== null);
   const canWithdraw = CASH_WITHDRAWAL_CATEGORIES.includes(account.category);
   const canUploadStatement = STATEMENT_UPLOAD_CATEGORIES.includes(account.category);
@@ -280,7 +278,7 @@ function AccountCard({
             </Tooltip>
           ) : null}
           {isSalary ? (
-            <Tooltip title="Your salary is paid into this account">
+            <Tooltip title="A current employer pays your salary into this account. Change it under Salary › Employers.">
               <Chip size="small" label="Salary" color="primary" variant="outlined" />
             </Tooltip>
           ) : null}
@@ -390,20 +388,12 @@ function AccountCard({
                 Upload Statement
               </MenuItem>
             ) : null}
-            {canBePrimaryOrSalary ? (
+            {canBePrimary ? (
               <MenuItem disabled={busy} onClick={fromMenu(() => actions.onTogglePrimary(account))}>
                 <ListItemIcon>
                   <MdiIcon path={isPrimary ? mdiStar : mdiStarOutline} fontSize="small" />
                 </ListItemIcon>
                 {isPrimary ? "Unset Primary" : "Set as Primary"}
-              </MenuItem>
-            ) : null}
-            {canBePrimaryOrSalary ? (
-              <MenuItem disabled={busy} onClick={fromMenu(() => actions.onToggleSalary(account))}>
-                <ListItemIcon>
-                  <MdiIcon path={isSalary ? mdiBriefcaseCheckOutline : mdiBriefcaseOutline} fontSize="small" />
-                </ListItemIcon>
-                {isSalary ? "Unset Salary Account" : "Set as Salary Account"}
               </MenuItem>
             ) : null}
             <MenuItem disabled={busy} onClick={fromMenu(() => actions.onToggleHidden(account))}>
@@ -426,29 +416,17 @@ function AccountCard({
             </MenuItem>
           </Menu>
           <Box className="account-card__actions" sx={{ display: { xs: "none", sm: "flex" }, gap: 0.25 }}>
-          {canBePrimaryOrSalary ? (
-            <>
-              <Button
-                size="small"
-                variant="text"
-                color="inherit"
-                disabled={busy}
-                startIcon={<MdiIcon path={isPrimary ? mdiStar : mdiStarOutline} />}
-                onClick={() => actions.onTogglePrimary(account)}
-              >
-                {isPrimary ? "Unset Primary" : "Set as Primary"}
-              </Button>
-              <Button
-                size="small"
-                variant="text"
-                color="inherit"
-                disabled={busy}
-                startIcon={<MdiIcon path={isSalary ? mdiBriefcaseCheckOutline : mdiBriefcaseOutline} />}
-                onClick={() => actions.onToggleSalary(account)}
-              >
-                {isSalary ? "Unset Salary Account" : "Set as Salary Account"}
-              </Button>
-            </>
+          {canBePrimary ? (
+            <Button
+              size="small"
+              variant="text"
+              color="inherit"
+              disabled={busy}
+              startIcon={<MdiIcon path={isPrimary ? mdiStar : mdiStarOutline} />}
+              onClick={() => actions.onTogglePrimary(account)}
+            >
+              {isPrimary ? "Unset Primary" : "Set as Primary"}
+            </Button>
           ) : null}
           <Button
             size="small"
@@ -507,7 +485,7 @@ function CategorySection({
   heading,
   busy,
   primaryId,
-  salaryId,
+  salaryIds,
   actions,
 }: {
   info: AccountCategoryInfo;
@@ -516,7 +494,8 @@ function CategorySection({
   heading: boolean;
   busy: boolean;
   primaryId: number | null;
-  salaryId: number | null;
+  /** Accounts a current employer pays the salary into. */
+  salaryIds: Set<number>;
   actions: CardActions;
 }) {
   const money = useMoney();
@@ -543,7 +522,7 @@ function CategorySection({
             last={index === accounts.length - 1}
             busy={busy}
             isPrimary={account.id === primaryId}
-            isSalary={account.id === salaryId}
+            isSalary={salaryIds.has(account.id)}
             actions={actions}
           />
         ))}
@@ -570,6 +549,7 @@ export function AccountsPage() {
   const setMe = useSetMe();
   const client = useQueryClient();
   const accounts = useAccounts();
+  const salaryIds = useSalaryAccountIds();
   const money = useMoney();
   // The chosen category lives in the URL (`?category=savings`) so it survives a reload and can be linked to; "all" is the bare URL.
   const [params, setParams] = useSearchParams();
@@ -610,15 +590,6 @@ export function AccountsPage() {
     onError,
   });
 
-  const toggleSalary = useMutation({
-    mutationFn: (account: Account) => updateMe({ salary_account_id: me.data?.salary_account_id === account.id ? null : account.id }),
-    onSuccess: (user, account) => {
-      setMe(user);
-      setMessage(user.salary_account_id === account.id ? `${account.name} is now your salary account` : `${account.name} is no longer your salary account`);
-    },
-    onError,
-  });
-
   const remove = useMutation({
     mutationFn: (account: Account) => deleteAccount(account.id),
     onSuccess: async () => {
@@ -650,13 +621,12 @@ export function AccountsPage() {
     onError,
   });
 
-  const busy = toggleHidden.isPending || togglePrimary.isPending || toggleSalary.isPending || remove.isPending || move.isPending;
+  const busy = toggleHidden.isPending || togglePrimary.isPending || remove.isPending || move.isPending;
   const actions: CardActions = {
     onEdit: (account) => setDialog({ mode: "edit", account }),
     onDelete: setToDelete,
     onToggleHidden: (account) => toggleHidden.mutate(account),
     onTogglePrimary: (account) => togglePrimary.mutate(account),
-    onToggleSalary: (account) => toggleSalary.mutate(account),
     onMove: (account, step) => move.mutate({ account, step }),
     onUploadStatement: setUploadFor,
     onAction: setAction,
@@ -803,7 +773,7 @@ export function AccountsPage() {
                   heading={selection === "all"}
                   busy={busy}
                   primaryId={me.data?.default_account_id ?? null}
-                  salaryId={me.data?.salary_account_id ?? null}
+                  salaryIds={salaryIds}
                   actions={actions}
                 />
               ))

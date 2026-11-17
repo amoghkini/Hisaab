@@ -40,6 +40,7 @@ import { HoverMenu } from "@/components/HoverMenu";
 import { MarketTicker } from "@/components/MarketTicker";
 import { MdiIcon } from "@/components/MdiIcon";
 import { NotAvailableDialog } from "@/components/NotAvailableDialog";
+import { NotificationsBell } from "@/components/NotificationsBell";
 
 /** One entry in a dropdown: a built page (`to`), or a planned one that says "not available yet". */
 interface NavMenuEntry {
@@ -104,7 +105,12 @@ const NAV: (NavLinkItem | NavMenuItem)[] = [
     kind: "menu",
     label: "Salary",
     icon: mdiBriefcaseOutline,
-    entries: [{ label: "Payslips" }, { label: "Add a payslip" }, { label: "Employers and salary structure" }],
+    activePaths: ["/salary"],
+    entries: [
+      { label: "Payslips", to: "/salary/payslips" },
+      { label: "Add a payslip", to: "/salary/payslips/new" },
+      { label: "Employers and salary structure", to: "/salary/employers" },
+    ],
   },
   {
     kind: "menu",
@@ -174,15 +180,13 @@ const navButtonSx = (compact: boolean) => ({
 
 /** The frame of the signed-in pages: a top bar with the navigation, and the page below it. */
 export function AppLayout() {
-  // The dashboard, accounts, transactions, markets and settings pages use the full width of the screen.
+  // Every page uses the full width of the screen (see .claude/skills/full-width-pages).
   const path = useLocation().pathname;
   // A new page starts at the top, not wherever the last one was scrolled to. Only the path counts, so changing a
   // filter on the same page (which only changes the query string) keeps its place.
   useEffect(() => {
     window.scrollTo(0, 0);
   }, [path]);
-  const fullWidth = path === "/" || ["/accounts", "/transactions", "/markets", "/settings"].some((prefix) => path.startsWith(prefix));
-  const maxWidth = fullWidth ? "none" : 1080;
   const navRef = useRef<HTMLElement | null>(null);
   const tickerRef = useRef<HTMLDivElement | null>(null);
   const navMode = useNavMode(navRef, tickerRef);
@@ -251,13 +255,14 @@ export function AppLayout() {
           <Box ref={tickerRef} sx={{ display: navMode === "full" ? "flex" : "none" }}>
             <MarketTicker />
           </Box>
+          <NotificationsBell />
           <ThemeModeSwitch />
           <PrivacyModeSwitch />
           <UserMenu />
         </Box>
       </Box>
 
-      <Box component="main" sx={{ maxWidth, mx: "auto", px: { xs: 2, sm: 3 }, py: 3 }}>
+      <Box component="main" sx={{ px: { xs: 2, sm: 3 }, py: 3 }}>
         <Outlet key={pageKey} />
       </Box>
     </Box>

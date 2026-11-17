@@ -51,13 +51,16 @@ Signing in creates a session: a random token sent as an HttpOnly cookie, with on
 
 ## Database migrations
 
-Alembic, in `migrations/`. The app upgrades the database to the latest revision every time it starts, so there is nothing to run by hand. After changing a model, add a revision:
+Alembic, in `migrations/`. The app upgrades the database to the latest revision every time it starts, so there is nothing to run by hand.
+
+Migrations are **generated, never written or edited by hand** (see `.claude/skills/migrations`). After changing a model, generate a revision with the next four-digit number:
 
 ```sh
-uv run alembic revision --autogenerate -m "what changed"
+uv run alembic check                                        # nothing pending before you start
+uv run alembic revision --autogenerate --rev-id 0013 -m "what changed"
 ```
 
-Review the generated file, then restart the app. A test (`tests/test_profile.py`) fails if the models and the migrations disagree.
+Ruff formats the generated file (a post-write hook in `alembic.ini`). Read it; if it is wrong, delete it, fix the models (or the imports in `migrations/env.py`) and generate it again. Then restart the app. A test (`tests/test_profile.py`) fails if the models and the migrations disagree.
 
 ## Checks
 

@@ -14,6 +14,11 @@ import { CategoriesPage } from "@/pages/categories/CategoriesPage";
 import { HomePage } from "@/pages/HomePage";
 import { LoginPage } from "@/pages/LoginPage";
 import { MarketsPage } from "@/pages/markets/MarketsPage";
+import { AddPayslipPage } from "@/pages/salary/AddPayslipPage";
+import { EmployerPage } from "@/pages/salary/EmployerPage";
+import { EmployersPage } from "@/pages/salary/EmployersPage";
+import { PayslipPage } from "@/pages/salary/PayslipPage";
+import { PayslipsPage } from "@/pages/salary/PayslipsPage";
 import { DataManagementPage } from "@/pages/settings/DataManagementPage";
 import { PreferencesSettingsPage } from "@/pages/settings/PreferencesSettingsPage";
 import { ProfileSettingsPage } from "@/pages/settings/ProfileSettingsPage";
@@ -47,6 +52,12 @@ createRoot(root).render(
                   <Route path="accounts" element={<AccountsPage />} />
                   <Route path="accounts/:accountId" element={<AccountEnquiryPage />} />
                   <Route path="markets" element={<MarketsPage />} />
+                  <Route path="salary" element={<Navigate to="/salary/payslips" replace />} />
+                  <Route path="salary/payslips" element={<PayslipsPage />} />
+                  <Route path="salary/payslips/new" element={<AddPayslipPage />} />
+                  <Route path="salary/payslips/:payslipId" element={<PayslipPage />} />
+                  <Route path="salary/employers" element={<EmployersPage />} />
+                  <Route path="salary/employers/:employerId" element={<EmployerPage />} />
                   <Route path="settings" element={<SettingsLayout />}>
                     <Route index element={<Navigate to="profile" replace />} />
                     <Route path="profile" element={<ProfileSettingsPage />} />

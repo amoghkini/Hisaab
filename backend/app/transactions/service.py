@@ -2,14 +2,14 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
-from sqlalchemy import case, exists, func, or_, select
+from sqlalchemy import case, delete, exists, func, or_, select
 from sqlalchemy.orm import Session
 
 from app.accounts.models import Account
 from app.auth.models import User
 from app.categories.models import Category
 from app.errors import ApiError
-from app.transactions.models import Transaction, TransactionType
+from app.transactions.models import Transaction, TransactionSource, TransactionType
 from app.transactions.schemas import DailyTotalsOut, DayTotalOut, TransactionIn, TransactionListOut, TransactionOut
 
 # A list covers at most this many days, so one call stays small. The page asks for a month at a time.
@@ -123,6 +123,45 @@ def replace_transaction(db: Session, transaction: Transaction, data: Transaction
 def delete_transaction(db: Session, transaction: Transaction) -> None:
     db.delete(transaction)
     db.commit()
+
+
+# Transactions another section makes together, such as a payslip's. That section owns the group and replaces or
+# deletes it as a whole; the ledger checks each entry the same way as one entered by hand.
+
+
+def replace_group(
+    db: Session,
+    user_id: int,
+    group_id: str,
+    source: TransactionSource,
+    entries: list[tuple[TransactionIn, str | None]],
+) -> list[Transaction]:
+    """Make the group exactly these entries, each with its `source_ref`. The caller commits."""
+    delete_group(db, user_id, group_id)
+    db.flush()  # the old entries' source_refs are free again
+    made: list[Transaction] = []
+    for data, source_ref in entries:
+        transaction = Transaction(user_id=user_id, source=source, source_ref=source_ref, group_id=group_id)
+        _apply(db, user_id, data, transaction)
+        db.add(transaction)
+        made.append(transaction)
+    db.flush()
+    return made
+
+
+def delete_group(db: Session, user_id: int, group_id: str) -> None:
+    """The caller commits."""
+    db.execute(delete(Transaction).where(Transaction.user_id == user_id, Transaction.group_id == group_id))
+
+
+def group_transactions(db: Session, user_id: int, group_id: str) -> list[Transaction]:
+    return list(
+        db.scalars(
+            select(Transaction)
+            .where(Transaction.user_id == user_id, Transaction.group_id == group_id)
+            .order_by(Transaction.id)
+        ).all()
+    )
 
 
 @dataclass(frozen=True)
