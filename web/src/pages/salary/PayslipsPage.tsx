@@ -34,7 +34,10 @@ function Figure({ label, value, strong = false }: { label: string; value: number
   );
 }
 
-const rowColumns = { xs: "repeat(3, minmax(0, 1fr))", md: "minmax(0, 2fr) 130px repeat(3, minmax(110px, 1fr)) 24px" };
+const rowColumns = { xs: "repeat(3, minmax(0, 1fr))", md: "minmax(0, 2fr) 104px repeat(3, minmax(96px, 1fr)) 20px" };
+
+/** The payslip list reads as a ledger, so it keeps to a compact, centred column rather than stretching across wide screens. */
+const PAGE_WIDTH = 960;
 
 function PayslipRow({ payslip }: { payslip: Payslip }) {
   const chip = STATUS_CHIP[payslip.status];
@@ -48,9 +51,9 @@ function PayslipRow({ payslip }: { payslip: Payslip }) {
         gridTemplateColumns: rowColumns,
         alignItems: "center",
         columnGap: 2,
-        rowGap: 1,
+        rowGap: 0.5,
         px: 2,
-        py: 1.5,
+        py: 1,
         borderRadius: 2,
         color: "inherit",
         textDecoration: "none",
@@ -99,8 +102,8 @@ export function PayslipsPage() {
   }
 
   return (
-    <>
-      <Box sx={{ display: "flex", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 1.5, mb: 2.5 }}>
+    <Box sx={{ maxWidth: PAGE_WIDTH, mx: "auto" }}>
+      <Box sx={{ display: "flex", alignItems: { xs: "flex-start", sm: "center" }, flexDirection: { xs: "column", sm: "row" }, gap: 1.5, mb: 2 }}>
         <Box sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="h5" component="h1">
             Payslips
@@ -129,8 +132,8 @@ export function PayslipsPage() {
         </Alert>
       ) : null}
 
-      <Box sx={{ display: "flex", gap: 1.5, flexWrap: "wrap", mb: 2 }}>
-        <TextField select size="small" label="Employer" value={employerId ?? ""} onChange={(event) => setFilter("employer", event.target.value)} sx={{ minWidth: 220 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, minmax(0, 1fr))", gap: 1.5, maxWidth: { sm: 440 }, mb: 2 }}>
+        <TextField select size="small" label="Employer" value={employerId ?? ""} onChange={(event) => setFilter("employer", event.target.value)}>
           <MenuItem value="">All employers</MenuItem>
           {(employers.data ?? []).map((employer) => (
             <MenuItem key={employer.id} value={employer.id}>
@@ -138,7 +141,7 @@ export function PayslipsPage() {
             </MenuItem>
           ))}
         </TextField>
-        <TextField select size="small" label="Status" value={status ?? ""} onChange={(event) => setFilter("status", event.target.value)} sx={{ minWidth: 180 }}>
+        <TextField select size="small" label="Status" value={status ?? ""} onChange={(event) => setFilter("status", event.target.value)}>
           <MenuItem value="">All</MenuItem>
           <MenuItem value="draft">To review</MenuItem>
           <MenuItem value="posted">Approved</MenuItem>
@@ -148,7 +151,7 @@ export function PayslipsPage() {
       {payslips.isPending ? (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
           {[0, 1, 2, 3].map((key) => (
-            <Skeleton key={key} variant="rounded" height={64} />
+            <Skeleton key={key} variant="rounded" height={56} />
           ))}
         </Box>
       ) : payslips.isError ? (
@@ -187,6 +190,6 @@ export function PayslipsPage() {
           ))}
         </Box>
       )}
-    </>
+    </Box>
   );
 }

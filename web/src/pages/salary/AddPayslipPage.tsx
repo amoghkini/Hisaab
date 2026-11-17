@@ -43,7 +43,7 @@ export function AddPayslipPage() {
   });
 
   return (
-    <>
+    <Box sx={{ maxWidth: 640, mx: "auto" }}>
       <Button variant="text" color="inherit" startIcon={<MdiIcon path={mdiArrowLeft} />} component={RouterLink} to="/salary/payslips" sx={{ mb: 1.5 }}>
         Payslips
       </Button>
@@ -59,7 +59,7 @@ export function AddPayslipPage() {
           Add an employer first, on <RouterLink to="/salary/employers">Employers and salary structure</RouterLink>.
         </Alert>
       ) : (
-        <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, sm: 3 } }}>
+        <Paper variant="outlined" sx={{ borderRadius: 3, p: { xs: 2, sm: 2.5 } }}>
           <Box
             component="form"
             noValidate
@@ -67,7 +67,7 @@ export function AddPayslipPage() {
               event.preventDefault();
               if (employerId !== "" && month) create.mutate();
             }}
-            sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", md: "minmax(0, 1fr) minmax(0, 1fr) auto" }, gap: 2, alignItems: "start" }}
+            sx={{ display: "grid", gridTemplateColumns: { xs: "minmax(0, 1fr)", sm: "repeat(2, minmax(0, 1fr))" }, gap: 2, alignItems: "start" }}
           >
             <TextField
               select
@@ -99,7 +99,7 @@ export function AddPayslipPage() {
               }}
               slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: employer?.joined_on.slice(0, 7), max: employer?.left_on?.slice(0, 7) } }}
             />
-            <Button type="submit" size="large" disabled={employerId === "" || !month || create.isPending} sx={{ mt: { md: 0.5 } }}>
+            <Button type="submit" disabled={employerId === "" || !month || create.isPending} sx={{ gridColumn: "1 / -1", justifySelf: "start" }}>
               Start payslip
             </Button>
           </Box>
@@ -110,6 +110,6 @@ export function AddPayslipPage() {
           ) : null}
         </Paper>
       )}
-    </>
+    </Box>
   );
 }
