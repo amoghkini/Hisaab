@@ -99,7 +99,7 @@ export function AddPayslipPage() {
               }}
               slotProps={{ inputLabel: { shrink: true }, htmlInput: { min: employer?.joined_on.slice(0, 7), max: employer?.left_on?.slice(0, 7) } }}
             />
-            <Button type="submit" disabled={employerId === "" || !month || create.isPending} sx={{ gridColumn: "1 / -1", justifySelf: "start" }}>
+            <Button type="submit" disabled={employerId === "" || !month || create.isPending} sx={{ gridColumn: "1 / -1", justifySelf: "center" }}>
               Start payslip
             </Button>
           </Box>
