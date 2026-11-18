@@ -1,10 +1,15 @@
 from alembic import context
 from sqlalchemy.engine import Connection
 
-from app.auth import models as _auth_models  # noqa: F401  registers the tables
+# Every model module, so autogenerate sees every table. A module missing here reads as tables to drop.
+from app.accounts import models as _account_models  # noqa: F401  registers the tables
+from app.auth import models as _auth_models  # noqa: F401
 from app.categories import models as _category_models  # noqa: F401
 from app.config import Settings
 from app.db import Base, make_engine
+from app.notifications import models as _notification_models  # noqa: F401
+from app.salary import models as _salary_models  # noqa: F401
+from app.transactions import models as _transaction_models  # noqa: F401
 
 target_metadata = Base.metadata
 

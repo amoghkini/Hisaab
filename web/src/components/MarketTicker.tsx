@@ -38,7 +38,7 @@ function Quote({ quote }: { quote: MarketQuote }) {
   );
 }
 
-/** NIFTY 50, BANK NIFTY and SENSEX with their change today, beside the theme switch. Wide screens only. */
+/** NIFTY 50, BANK NIFTY and SENSEX with their change today, beside the theme switch. The top bar hides it when it has no room. */
 export function MarketTicker() {
   const { quotes, live } = useMarketQuotes();
   return (
@@ -46,7 +46,7 @@ export function MarketTicker() {
       <Box
         role="group"
         aria-label="Market indices"
-        sx={{ display: { xs: "none", lg: "flex" }, alignItems: "center", gap: 3, mr: 1.5 }}
+        sx={{ display: "flex", alignItems: "center", gap: 3, mr: 1.5 }}
       >
         {quotes.map((quote) => (
           <Quote key={quote.symbol} quote={quote} />

@@ -1,6 +1,12 @@
+import { ActionItems } from "@/pages/overview/ActionItems";
 import { OverviewDashboard } from "@/pages/overview/OverviewDashboard";
 
-/** The dashboard. Its widgets and their data are in pages/overview. */
+/** The dashboard: anything waiting for the user first, then the widgets. Both are in pages/overview. */
 export function HomePage() {
-  return <OverviewDashboard />;
+  return (
+    <>
+      <ActionItems />
+      <OverviewDashboard />
+    </>
+  );
 }

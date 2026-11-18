@@ -43,6 +43,7 @@ def _account(client: TestClient) -> int:
 def test_new_settings_have_defaults(client: TestClient) -> None:
     me = client.get(ME).json()
     assert me["default_account_id"] is None
+    assert "salary_account_id" not in me  # set per employer now
     assert me["fiscal_year_start_month"] == 4
     assert (me["digit_grouping"], me["currency_display"]) == ("indian", "symbol")
     assert me["created_at"]
@@ -203,10 +204,19 @@ def test_clear_transactions_keeps_accounts_and_categories(client: TestClient) ->
 def test_clear_all_data(client: TestClient) -> None:
     account_id = _add_data(client)
     client.patch(ME, json={"default_account_id": account_id})
+    employer = {
+        "name": "Acme",
+        "joined_on": "2024-06-20",
+        "pay_day": 30,
+        "salary_account_id": account_id,
+        "lines": [{"name": "Basic", "kind": "earning", "yearly_amount": 120_000_00}],
+    }
+    assert client.post("/api/v1/salary/employers", json=employer).status_code == 201
     assert client.post("/api/v1/data/clear", json={"scope": "all", "password": "correct horse"}).status_code == 204
     stats = client.get("/api/v1/data/stats").json()
     assert (stats["accounts"], stats["categories"], stats["transactions"]) == (0, 0, 0)
     assert client.get(ME).json()["default_account_id"] is None
+    assert client.get("/api/v1/salary/employers").json() == []
 
 
 def test_clear_needs_the_password_and_leaves_others_alone(client: TestClient) -> None:

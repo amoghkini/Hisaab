@@ -28,6 +28,8 @@ Open http://localhost:5173. Vite forwards `/api` to the backend on port 8000 (ch
 
 A copy of ezBookkeeping's overview page: ten widgets on a 12-column grid (`src/pages/overview/layout.ts`), stacked on small screens.
 
+Above the widgets, anything waiting for you is listed with a link to deal with it (`src/pages/overview/ActionItems.tsx`), such as payslips drafted on pay day that still need review. When there is nothing to do, nothing is shown.
+
 Every widget shows real numbers. Each loads its own data through one call in `src/api/overview.ts`: the page works out the dates (today, this week, this month, this year) from the browser's clock and your first day of the week, and the backend's `/api/v1/overview/*` endpoints add up your transactions in them. Only income and expense count (transfers are neither), in your default currency.
 
 View Details, a calendar day and a ranked category open the Transactions page.

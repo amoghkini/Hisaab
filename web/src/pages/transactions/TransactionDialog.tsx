@@ -1,7 +1,8 @@
-import { mdiSwapVertical } from "@mdi/js";
+import { mdiPaperclip, mdiSwapVertical } from "@mdi/js";
 import Alert from "@mui/material/Alert";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
+import Chip from "@mui/material/Chip";
 import Dialog from "@mui/material/Dialog";
 import DialogActions from "@mui/material/DialogActions";
 import DialogContent from "@mui/material/DialogContent";
@@ -485,6 +486,14 @@ export function TransactionDialog({ target, onClose, onSaved }: { target: Transa
             slotProps={{ htmlInput: { maxLength: 255 } }}
             sx={{ gridColumn: "1 / -1" }}
           />
+
+          {/* Placeholder: attaching a receipt or file to a transaction is planned, not built yet. */}
+          <Box sx={{ gridColumn: "1 / -1", display: "flex", alignItems: "center", gap: 1.5 }}>
+            <Button variant="outlined" color="inherit" disabled startIcon={<MdiIcon path={mdiPaperclip} />}>
+              Add Attachment
+            </Button>
+            <Chip label="Coming soon" size="small" color="primary" variant="outlined" />
+          </Box>
 
           {serverError && Object.keys(serverError.fields).length === 0 ? (
             <Typography color="error" variant="body2" sx={{ gridColumn: "1 / -1" }}>

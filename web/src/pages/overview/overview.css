@@ -596,6 +596,9 @@
 
 .heatmap__cell { fill: var(--mui-palette-primary-main); }
 .heatmap__cell--empty { fill: rgba(var(--hk-on-surface), 0.07); }
+.heatmap__cell { cursor: pointer; outline: none; }
+.heatmap__cell:hover,
+.heatmap__cell:focus-visible { stroke: rgba(var(--hk-on-surface), 0.7); stroke-width: 1.2px; }
 .heatmap__label { fill: rgba(var(--hk-on-surface), 0.55); font-size: 9px; }
 
 /* ---------- Transaction calendar ---------- */

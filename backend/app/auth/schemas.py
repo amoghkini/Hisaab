@@ -77,7 +77,7 @@ class UserOut(BaseModel):
 
 
 class UpdateMeIn(BaseModel):
-    """Only the fields sent are changed. `theme_color` or `default_account_id` null goes back to none."""
+    """Only the fields sent are changed. Null `theme_color` or `default_account_id` clears it."""
 
     name: Name | None = None
     # The e-mail is the login and cannot be changed; sending it is refused rather than ignored.

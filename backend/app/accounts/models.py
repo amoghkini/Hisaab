@@ -26,6 +26,9 @@ CATEGORY_ORDER = list(AccountCategory)
 # What the user owes, rather than owns. Their balances are negative when money is owed.
 LIABILITY_CATEGORIES = frozenset({AccountCategory.CREDIT_CARD, AccountCategory.LOAN})
 
+# Where a salary can be paid into.
+SALARY_CATEGORIES = frozenset({AccountCategory.SAVINGS, AccountCategory.CURRENT})
+
 _CATEGORY_VALUES = ", ".join(f"'{category}'" for category in AccountCategory)
 
 

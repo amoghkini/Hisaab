@@ -35,6 +35,9 @@ export const ACCOUNT_CATEGORIES: AccountCategoryInfo[] = [
   { value: "investment", name: "Investment", icon: "chart-line", liability: false },
 ];
 
+/** The accounts page offers "Set as Primary" on these, and an employer's salary account must be one (the backend checks that). */
+export const SALARY_CATEGORIES: AccountCategory[] = ["savings", "current"];
+
 export function categoryInfo(category: AccountCategory): AccountCategoryInfo {
   return ACCOUNT_CATEGORIES.find((info) => info.value === category) ?? ACCOUNT_CATEGORIES[0]!;
 }

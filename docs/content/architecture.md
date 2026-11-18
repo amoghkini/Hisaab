@@ -23,7 +23,7 @@ Dependencies point one way: `salary`, `investments`, `tax`, `schedules`, `budget
 
 ## Navigation
 
-Transactions · **Accounts ▾** · **Planning ▾** · **Wealth ▾** · **Salary ▾** · **Taxes ▾** · Markets (*built*)
+Transactions · **Accounts ▾** · **Planning ▾** · **Wealth ▾** · **Salary ▾** · **Taxes ▾** · **Stats ▾** · Markets (*built*)
 
 | Item | Entries |
 |---|---|
@@ -32,6 +32,7 @@ Transactions · **Accounts ▾** · **Planning ▾** · **Wealth ▾** · **Sala
 | Wealth | Net worth; Investments (Portfolio, EPF, PPF and NPS, FDs and RDs, mutual funds and stocks, Sync from EPFO); Property and vehicles; Insurance |
 | Salary | Payslips, Add a payslip, Employers and salary structure |
 | Taxes | Tax summary, TDS and taxes paid, Deductions, Old vs new regime |
+| Stats | Spending by category, Income vs expense, Trends, Monthly report |
 
 - There is no Overview item: the logo goes to the dashboard at `/`.
 - The dropdowns open on hover (`HoverMenu`). Entries not built yet say "not available yet".
@@ -65,13 +66,21 @@ Kind-specific fields do **not** go on `accounts`. Each kind that needs them gets
 
 ## Salary
 
-- `employers` → `salary_structures` (each with an effective-from date, since pay changes) → `salary_components`.
-- A component is an **earning**, a **deduction** or an **employer contribution**. Its destination is an account (salary bank, EPF, NPS) or a tax head (TDS, professional tax).
-- `payslips` (one per month per employer) → `payslip_lines` (amount per component). The form fills from the structure in force that month; the user adjusts and posts.
-- Posting creates one transaction group (`source='salary'`):
-    - income of the net pay into the salary account
-    - income into the EPF account for employee and employer PF
-    - `tax_entries` for TDS and professional tax
+*Built*: employers, components, revisions and documents (migration 0012); payslips and notifications (migration 0013).
+
+- `employers`: name, employee ID, joined and left dates, first pay date (joining after the month's cut-off pushes the first salary a month later), pay day, salary account, UAN. Each employer has its own salary account, a savings or current account; the Accounts page tags the accounts of current employers. The ledger does not clear the link when an account is deleted or changes kind; the salary section reports it (`salary_account_ok`).
+- `salary_components` (per employer): a component is an **earning**, a **deduction** or an **employer contribution**. Its destination is an account (salary bank, EPF, NPS) or a tax head (TDS, professional tax).
+- `salary_revisions` → `salary_revision_lines`: the **yearly** amount of each component from an effective date. Onboarding creates the `joining` revision; each appraisal, promotion or restructure adds one, with the date it was announced, the date it applies from, and the new designation. The revision in force is the latest with `effective_from` on or before today. The monthly figure is a twelfth of the yearly amount, rounded to the rupee.
+- `employer_documents`: offer, joining, appraisal, promotion and relieving letters, Form 16 and tax forecasts, by financial year, with their figures entered by hand. Uploading the file comes later.
+- Kind columns are checked by the API schemas, not CHECK constraints, so a new kind needs no migration.
+- `payslips` (one per month per employer) → `payslip_lines` (amount per component). A draft for month M fills from the latest posted payslip if one was posted since the revision in force for M took effect, and otherwise from that revision's yearly ÷ 12. So the first salary, and the first after an appraisal, start from the yearly numbers; later months repeat what the user entered.
+- A job in the app (`app/salary/jobs.py`, hourly; `HISAAB_PAYSLIP_JOB_INTERVAL_SECONDS`, 0 turns it off) drafts each month whose pay day has come, from the first pay date to the leaving date, and adds a notification (`notifications`, the bell in the top bar). Opening the payslips list does the same, so it is never behind. It never back-fills pay days before the employer was added; those months are added by hand ("Add a payslip").
+- `payslips.status`: `draft`, `posted`, or `dismissed`. Deleting a payslip keeps the row as dismissed, so the job does not draft that month again; adding the month by hand brings it back.
+- An employer with approved payslips cannot be deleted, nor can a component on one. Clearing all transactions turns approved payslips back into drafts.
+- Posting (approving) creates one transaction group (`source='salary'`, `source_ref='payslip:<id>'`), through the ledger's `replace_group`:
+    - income of the net pay into the salary account, in the payslip's category (the "Salary Income" preset to start with) (*built*)
+    - income into the EPF account for employee and employer PF (*planned*, with EPF accounts)
+    - `tax_entries` for TDS and professional tax (*planned*, with Taxes)
 - Editing a payslip replaces its group; deleting it removes the group.
 
 ## Taxes

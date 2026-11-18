@@ -289,7 +289,12 @@ def test_daily_totals_cover_every_match_across_pages(client: TestClient) -> None
     food = _category(client, "expense", "Food")
     for hour in (9, 10, 11):
         _add(
-            client, type="expense", account_id=bank, category_id=food, amount=1_000, occurred_at=f"2026-11-05T{hour:02d}:00"
+            client,
+            type="expense",
+            account_id=bank,
+            category_id=food,
+            amount=1_000,
+            occurred_at=f"2026-11-05T{hour:02d}:00",
         )
     _add(client, type="income", account_id=bank, category_id=salary, amount=50_000, occurred_at="2026-11-05T08:00")
     _add(client, type="expense", account_id=dollars, category_id=food, amount=700, occurred_at="2026-11-05T12:00")

@@ -5,6 +5,9 @@ from app.accounts.models import Account
 from app.auth.models import User
 from app.categories.models import Category
 from app.data.schemas import DataStatsOut
+from app.notifications.service import delete_all as delete_notifications
+from app.salary.payslips import forget_postings
+from app.salary.service import delete_salary_data
 from app.transactions.models import Transaction
 
 
@@ -30,7 +33,10 @@ def data_stats(db: Session, user_id: int) -> DataStatsOut:
 def clear_data(db: Session, user: User, everything: bool) -> None:
     """Delete every transaction, and with `everything` the accounts and categories too. The caller commits."""
     db.execute(delete(Transaction).where(Transaction.user_id == user.id))
+    forget_postings(db, user.id)  # approved payslips lost their transactions: they are drafts again
     if everything:
+        delete_notifications(db, user.id)
+        delete_salary_data(db, user.id)  # before the accounts, which employers point at
         db.execute(delete(Account).where(Account.user_id == user.id))
         # Sub-categories first, so a database that enforces the parent link never sees an orphan.
         db.execute(delete(Category).where(Category.user_id == user.id, Category.parent_id.is_not(None)))

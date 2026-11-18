@@ -20,6 +20,11 @@ def _body(code: str, message: str, details: list[dict[str, Any]]) -> dict[str, A
     return {"error": {"code": code, "message": message, "details": details}}
 
 
+def _field_name(loc: tuple[Any, ...]) -> str:
+    """The innermost named field: an item of a list ("lines", 0) reports the list."""
+    return next((part for part in reversed(loc) if isinstance(part, str)), str(loc[-1]))
+
+
 def _field_message(error: dict[str, Any]) -> str:
     return str(error.get("msg", "Invalid value.")).removeprefix("Value error, ")
 
@@ -34,7 +39,9 @@ async def _validation_error(_: Request, exc: Exception) -> JSONResponse:
     if not isinstance(exc, RequestValidationError):  # pragma: no cover
         raise exc
     details = [
-        {"field": str(error["loc"][-1]), "message": _field_message(error)} for error in exc.errors() if error.get("loc")
+        {"field": _field_name(error["loc"]), "message": _field_message(error)}
+        for error in exc.errors()
+        if error.get("loc")
     ]
     message = details[0]["message"] if details else "Some fields are not valid."
     return JSONResponse(_body("validation_failed", message, details), status_code=422)
